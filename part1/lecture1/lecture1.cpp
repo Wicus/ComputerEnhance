@@ -1,13 +1,13 @@
 #include <cstdint>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#define OK    0
-#define ERROR 1
+#define OK       0
+#define ERROR    1
+#define MAX_SIZE 100
 
-int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t resultSize);
+int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result);
 
 int32_t main(int32_t argc, char *argv[])
 {
@@ -37,7 +37,7 @@ int32_t main(int32_t argc, char *argv[])
     fprintf(outputFile, "bits 16\n\n");
 
     int32_t firstByte, secondByte;
-    char result[50];
+    char result[MAX_SIZE];
 
     while (true)
     {
@@ -48,7 +48,7 @@ int32_t main(int32_t argc, char *argv[])
             break;
         }
 
-        if (Decode(firstByte, secondByte, result, sizeof(result)) != OK)
+        if (Decode(firstByte, secondByte, result) != OK)
         {
             fprintf(stderr, "Error decoding opcode\n");
             fclose(inputFile);
@@ -122,7 +122,7 @@ void GetRm(uint8_t mod, uint8_t w, uint8_t rm, char *output)
     }
 }
 
-int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t maxSize)
+int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result)
 {
     uint8_t opcode = firstByte >> 2;
     uint8_t d = (firstByte >> 1) & 0b1;
@@ -133,8 +133,8 @@ int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t maxSi
 
     CopyOpcodeIntoResult(result, opcode);
 
-    char source[10];
-    char destination[10];
+    char source[3];
+    char destination[3];
 
     if (d == 1)
     {
@@ -149,9 +149,9 @@ int32_t Decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t maxSi
         GetRm(mod, w, rm, destination);
     }
 
-    strncat_s(result, maxSize, destination, maxSize - strlen(result) - 1);
-    strncat_s(result, maxSize, ", ", maxSize - strlen(result) - 1);
-    strncat_s(result, maxSize, source, maxSize - strlen(result) - 1);
+    strncat_s(result, MAX_SIZE, destination, strlen(destination));
+    strncat_s(result, MAX_SIZE, ", ", 2);
+    strncat_s(result, MAX_SIZE, source, strlen(source));
 
     return OK;
 }
