@@ -1,8 +1,7 @@
-#include <cstdint>
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <windows.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct {
   uint8_t instruction;
@@ -13,100 +12,79 @@ typedef struct {
   uint8_t rm;
 } MovInstruction;
 
-std::string decode(uint8_t firstByte, uint8_t secondByte);
+void decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t resultSize);
+
+const char *registerFieldsWide[] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
+const char *registerFieldsLow[] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
+    printf("Usage: %s <filename>\n", argv[0]);
     return 1;
   }
 
   // Open the file for reading
-  std::ifstream file(argv[1], std::ios::binary);
-  if (!file.is_open()) {
-    std::cout << "Error opening file: " << argv[1] << std::endl;
+  FILE *file;
+  errno_t err = fopen_s(&file, argv[1], "rb");
+  if (file == NULL) {
+    printf("Error opening file: %s\n", argv[1]);
     return 1;
   }
 
   // Open the file for writing
-  std::ofstream outFile("out.asm");
-  if (!outFile.is_open()) {
-    std::cout << "Error opening file: " << argv[1] << std::endl;
+  FILE* outFile;
+  fopen_s(&outFile, "out.asm", "w");
+  if (outFile == NULL) {
+    printf("Error opening file for output\n");
+    fclose(file);
     return 1;
   }
 
-  outFile << "bits 16" << std::endl << std::endl;
+  fprintf(outFile, "bits 16\n\n");
 
-  do {
-    uint8_t firstByte = file.get();
-    uint8_t secondByte = file.get();
+  int firstByte, secondByte;
+  char result[50];
+  while ((firstByte = fgetc(file)) != EOF && (secondByte = fgetc(file)) != EOF) {
+    decode(firstByte, secondByte, result, sizeof(result));
+    fprintf(outFile, "%s\n", result);
+  }
 
-    std::string result = decode(firstByte, secondByte);
-
-    outFile << result << std::endl;
-  } while (file.peek() != EOF);
-
-  file.close();
-  outFile.close();
+  fclose(file);
+  fclose(outFile);
 
   return 0;
 }
 
-std::vector<std::string> registerFieldsWide = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
-std::vector<std::string> registerFieldsLow = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
-
-std::string decode(uint8_t firstByte, uint8_t secondByte) {
-  std::string result = "";
-  auto opcode = (firstByte & 0b11111100) >> 2;
-
+void decode(uint8_t firstByte, uint8_t secondByte, char *result, size_t resultSize) {
   MovInstruction movInstruction;
 
-  movInstruction.instruction = (firstByte & 0b11111100) >> 2; // 0b100010 = mov
-  movInstruction.d = (firstByte & 0b00000010) >> 1; // 0b1 = reg is destination
-  movInstruction.w = (firstByte & 0b00000001); // 0b1 = 16 bit, 0b0 = 8 bit
-  movInstruction.mod = (secondByte & 0b11000000) >> 6; // 0b11 = register
-  movInstruction.reg = (secondByte & 0b00111000) >> 3; // 3 bits of register (name)
-  movInstruction.rm = (secondByte & 0b00000111); // 3 bits of register (name)
+  movInstruction.instruction = (firstByte >> 2) & 0b00111111;
+  movInstruction.d = (firstByte >> 1) & 0b00000001;
+  movInstruction.w = firstByte & 0b00000001;
+  movInstruction.mod = (secondByte >> 6) & 0b00000011;
+  movInstruction.reg = (secondByte >> 3) & 0b00000111;
+  movInstruction.rm = secondByte & 0b00000111;
 
-  // mov
-  if (movInstruction.instruction == 0b100010) {
-    result += "mov ";
+  if (movInstruction.instruction != 0b100010) {
+    strcpy_s(result, resultSize, "Invalid instruction");
+    return;
   }
 
-  // register to register
-  if (movInstruction.mod == 0b11) {
+  strcpy_s(result, resultSize, "mov ");
 
-    // reg is destination, rm the source
-    if (movInstruction.d == 0b1) {
-      // 16 bit
-      if (movInstruction.w == 0b1) {
-        result += registerFieldsWide[movInstruction.reg];
-        result += ", ";
-        result += registerFieldsWide[movInstruction.rm];
-      }
-      // 8 bit
-      else {
-        result += registerFieldsLow[movInstruction.reg];
-        result += ", ";
-        result += registerFieldsLow[movInstruction.rm];
-      }
-    }
-    // rm is destination, reg is the source
-    else {
-      // 16 bit
-      if (movInstruction.w == 0b1) {
-        result += registerFieldsWide[movInstruction.rm];
-        result += ", ";
-        result += registerFieldsWide[movInstruction.reg];
-      }
-      // 8 bit
-      else {
-        result += registerFieldsLow[movInstruction.rm];
-        result += ", ";
-        result += registerFieldsLow[movInstruction.reg];
-      }
-    }
+  const char *source;
+  const char *destination;
+
+  if (movInstruction.d) {
+    destination = movInstruction.w ? registerFieldsWide[movInstruction.reg] : registerFieldsLow[movInstruction.reg];
+    source = movInstruction.w ? registerFieldsWide[movInstruction.rm] : registerFieldsLow[movInstruction.rm];
+  } else {
+    destination = movInstruction.w ? registerFieldsWide[movInstruction.rm] : registerFieldsLow[movInstruction.rm];
+    source = movInstruction.w ? registerFieldsWide[movInstruction.reg] : registerFieldsLow[movInstruction.reg];
   }
 
-  return result;
+  strncat_s(result, resultSize, destination, resultSize - strlen(result) - 1);
+  strncat_s(result, resultSize, ", ", resultSize - strlen(result) - 1);
+  strncat_s(result, resultSize, source, resultSize - strlen(result) - 1);
 }
+
