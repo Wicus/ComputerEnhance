@@ -24,29 +24,26 @@ void CopyOpcodeIntoResult(char *destination, uint8_t opcode)
     }
 }
 
-const char *sixteenBitRegisters[] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
-const char *eigthBitRegisters[] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
+const char sixteenBitRegisters[][3] = {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
+const char eigthBitRegisters[][3] = {"al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
+const char memoryMode[][128] =
+    {"[bx + si]", "[bx + di]", "[bp + si]", "[bp + di]", "[si]", "[di]", "[DIRECT ADDRESS]", "[bx]"};
+const char memoryModeDisplacement[][128] =
+    {"[bx + si]", "[bx + di]", "[bp + si]", "[bp + di]", "[si]", "[di]", "[bp]", "[bx]"};
 
-void GetReg(uint8_t mod, uint8_t w, uint8_t reg, char *output)
+void GetReg(uint8_t w, uint8_t reg, char *output)
 {
-    switch (mod)
+    if (w == 1)
     {
-        case 0b11:
-        {
-            if (w == 1)
-            {
-                strcpy_s(output, strlen(sixteenBitRegisters[reg]) + 1, sixteenBitRegisters[reg]);
-            }
-            else
-            {
-                strcpy_s(output, strlen(eigthBitRegisters[reg]) + 1, eigthBitRegisters[reg]);
-            }
-        }
-        break;
+        strcpy_s(output, strlen(sixteenBitRegisters[reg]) + 1, sixteenBitRegisters[reg]);
+    }
+    else
+    {
+        strcpy_s(output, strlen(eigthBitRegisters[reg]) + 1, eigthBitRegisters[reg]);
     }
 }
 
-void GetRm(uint8_t mod, uint8_t w, uint8_t rm, char *output)
+void GetRm(FILE *inputFile, uint8_t mod, uint8_t w, uint8_t rm, char *output)
 {
     switch (mod)
     {
@@ -59,6 +56,45 @@ void GetRm(uint8_t mod, uint8_t w, uint8_t rm, char *output)
             else
             {
                 strcpy_s(output, strlen(eigthBitRegisters[rm]) + 1, eigthBitRegisters[rm]);
+            }
+        }
+        break;
+        case 0b00:
+        {
+            strcpy_s(output, strlen(memoryMode[rm]) + 1, memoryMode[rm]);
+        }
+        break;
+        case 0b01:
+        {
+            strcpy_s(output, strlen(memoryModeDisplacement[rm]) + 1, memoryModeDisplacement[rm]);
+
+            uint8_t low8bitDisplacement = fgetc(inputFile);
+            if (low8bitDisplacement == 0)
+            {
+                break;
+            }
+            else
+            {
+                output[strlen(output) - 1] = '\0';
+                sprintf(output, "%s + %d]", output, low8bitDisplacement);
+            }
+        }
+        break;
+        case 0b10:
+        {
+            strcpy_s(output, strlen(memoryModeDisplacement[rm]) + 1, memoryModeDisplacement[rm]);
+
+            uint8_t low8bitDisplacement = fgetc(inputFile);
+            int8_t high8bitDisplacement = fgetc(inputFile);
+            int16_t wideDisplacement = (high8bitDisplacement << 8) | low8bitDisplacement;
+            if (wideDisplacement == 0)
+            {
+                break;
+            }
+            else
+            {
+                output[strlen(output) - 1] = '\0';
+                sprintf(output, "%s + %d]", output, wideDisplacement);
             }
         }
         break;
@@ -96,8 +132,8 @@ int32_t main(int32_t argc, char *argv[])
 
     while (true)
     {
-        int8_t firstByte = fgetc(inputFile);
-        if (firstByte == EOF)
+        uint8_t firstByte = fgetc(inputFile);
+        if (feof(inputFile))
         {
             break;
         }
@@ -106,7 +142,6 @@ int32_t main(int32_t argc, char *argv[])
         bool isMovRegisterToRegister = (firstByte >> 2) == 0b100010;
         if (!isMovRegisterToRegister && !isMovImediateToRegister)
         {
-            // TODO: debug
             printf("Invalid opcode\n");
             fclose(inputFile);
             fclose(outputFile);
@@ -125,16 +160,18 @@ int32_t main(int32_t argc, char *argv[])
             char destination[10];
             if (w == 1)
             {
-                int8_t secondByte = fgetc(inputFile);
-                int8_t thirdByte = fgetc(inputFile);
+                // Make sure that the low byte in unsigned, so that we can OR it with the high byte
+                uint8_t lowByte = fgetc(inputFile);
+                int8_t highByte = fgetc(inputFile);
+                int16_t wideByte = (highByte << 8) | lowByte;
                 strcpy_s(destination, strlen(sixteenBitRegisters[reg]) + 1, sixteenBitRegisters[reg]);
-                sprintf(source, "%d", ((uint16_t)secondByte + (uint16_t)thirdByte));
+                sprintf(source, "%d", wideByte);
             }
             else
             {
-                int8_t secondByte = fgetc(inputFile);
+                int8_t lowByte = fgetc(inputFile);
                 strcpy_s(destination, strlen(eigthBitRegisters[reg]) + 1, eigthBitRegisters[reg]);
-                sprintf(source, "%u", secondByte);
+                sprintf(source, "%d", lowByte);
             }
 
             strncat_s(result, MAX_SIZE, destination, strlen(destination));
@@ -149,26 +186,26 @@ int32_t main(int32_t argc, char *argv[])
 
             uint8_t w = firstByte & 0b1;
 
-            int8_t secondByte = fgetc(inputFile);
+            uint8_t secondByte = fgetc(inputFile);
             uint8_t reg = (secondByte >> 3) & 0b111;
             uint8_t d = (firstByte >> 1) & 0b1;
             uint8_t mod = (secondByte >> 6) & 0b11;
             uint8_t rm = secondByte & 0b111;
 
-            char source[3];
-            char destination[3];
+            char source[128] = "\0";
+            char destination[128] = "\0";
 
             if (d == 1)
             {
                 // Register is the destination field
-                GetReg(mod, w, reg, destination);
-                GetRm(mod, w, rm, source);
+                GetReg(w, reg, destination);
+                GetRm(inputFile, mod, w, rm, source);
             }
             else
             {
                 // Register is the source field
-                GetReg(mod, w, reg, source);
-                GetRm(mod, w, rm, destination);
+                GetReg(w, reg, source);
+                GetRm(inputFile, mod, w, rm, destination);
             }
 
             strncat_s(result, MAX_SIZE, destination, strlen(destination));
