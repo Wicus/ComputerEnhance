@@ -149,9 +149,10 @@ void GetRm(char *input, int32_t *offset, uint8_t mod, uint8_t w, uint8_t rm, cha
 
 enum Opcode
 {
-    mov_ImediateToRegister,
-    mov_RegisterToRegister,
-    add_ImediateToRegister,
+    mov_ModRegRm,
+    mov_ImediateToReg,
+    add_ModRegRm,
+    add_ImediateToReg,
 };
 
 typedef struct
@@ -169,7 +170,7 @@ int32_t GetInstruction(const uint8_t firstByte, Instruction *instruction)
             switch ((firstByte >> 4) & 0b0001)
             {
                 case 0b1:
-                    instruction->opcode = mov_ImediateToRegister;
+                    instruction->opcode = mov_ImediateToReg;
                     strcpy_s(instruction->name, strlen("mov") + 1, "mov");
                     break;
 
@@ -182,8 +183,26 @@ int32_t GetInstruction(const uint8_t firstByte, Instruction *instruction)
             switch ((firstByte >> 2) & 0b000111)
             {
                 case 0b010:
-                    instruction->opcode = mov_RegisterToRegister;
+                    instruction->opcode = mov_ModRegRm;
                     strcpy_s(instruction->name, strlen("mov") + 1, "mov");
+                    break;
+
+                case 0b000:
+                    instruction->opcode = add_ImediateToReg;
+                    strcpy_s(instruction->name, strlen("add") + 1, "add");
+                    break;
+
+                default:
+                    return -1;
+            }
+            break;
+
+        case 0b000:
+            switch ((firstByte >> 2) & 0b000111)
+            {
+                case 0b000:
+                    instruction->opcode = add_ModRegRm;
+                    strcpy_s(instruction->name, strlen("add") + 1, "add");
                     break;
 
                 default:
@@ -247,7 +266,7 @@ int32_t main(int32_t argc, char *argv[])
 
         char source[128] = "\0";
         char destination[128] = "\0";
-        if (instruction.opcode == mov_ImediateToRegister)
+        if (instruction.opcode == mov_ImediateToReg)
         {
             uint8_t w = (firstByte >> 3) & 0b1;
             uint8_t reg = firstByte & 0b111;
@@ -268,8 +287,38 @@ int32_t main(int32_t argc, char *argv[])
                 sprintf(source, "%d", lowByte);
             }
         }
+        else if (instruction.opcode == add_ImediateToReg)
+        {
+            uint8_t s = (firstByte >> 1) & 0b1;
+            uint8_t w = firstByte & 0b1;
 
-        if (instruction.opcode == mov_RegisterToRegister)
+            uint8_t secondByte = input[offset++];
+            uint8_t mod = (secondByte >> 6) & 0b11;
+            uint8_t rm = secondByte & 0b111;
+
+            if (w == 1)
+            {
+                if (s == 1)
+                {
+                    uint8_t lowByte = input[offset++];
+                    strcpy_s(destination, strlen(sixteenBitRegisters[rm]) + 1, sixteenBitRegisters[rm]);
+                    sprintf(source, "%d", lowByte);
+                }
+                else
+                {
+                    uint8_t lowByte = input[offset++];
+                    strcpy_s(destination, strlen(sixteenBitRegisters[rm]) + 1, sixteenBitRegisters[rm]);
+                    sprintf(source, "%d", lowByte);
+                }
+            }
+            else
+            {
+                int8_t lowByte = input[offset++];
+                strcpy_s(destination, strlen(eigthBitRegisters[rm]) + 1, eigthBitRegisters[rm]);
+                sprintf(source, "%d", lowByte);
+            }
+        }
+        else if (instruction.opcode == mov_ModRegRm || instruction.opcode == add_ModRegRm)
         {
             uint8_t w = firstByte & 0b1;
 
