@@ -30,7 +30,6 @@ typedef struct RegisterValue
 } RegisterValue;
 
 static char *ReadFile(const char *filePath, size_t *size);
-static int32_t GetRegisterValue(const char *name, RegisterValue *registerValues, int32_t size);
 
 int32_t main(int32_t argc, char *argv[])
 {
@@ -64,7 +63,7 @@ int32_t main(int32_t argc, char *argv[])
 
     RegisterValue registerValues[20] = {0};
     int32_t offset = 0;
-    int32_t index = 0;
+    int32_t index = 1;
     while (offset < fileSize)
     {
         instruction decodedInstruction;
@@ -79,10 +78,27 @@ int32_t main(int32_t argc, char *argv[])
         offset += decodedInstruction.Size;
 
         RegisterValue registerValue = {0};
-        strncpy(registerValue.reg, Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register), 100);
-        int32_t currentRegisterValue = GetRegisterValue(registerValue.reg, registerValues, ArrayCount(registerValues));
-        registerValue.value = decodedInstruction.Operands[1].Immediate.Value;
+        int32_t currentRegisterValue = 0;
+        if (decodedInstruction.Operands[0].Type == Operand_Register)
+        {
+            strncpy(registerValue.reg, Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register), 100);
+            currentRegisterValue = registerValues[decodedInstruction.Operands[0].Register.Index].value;
+        }
+        else
+        {
+            printf("Operand 0 type invalid: \n");
+        }
 
+        if (decodedInstruction.Operands[1].Type == Operand_Register)
+        {
+            registerValue.value = registerValues[decodedInstruction.Operands[1].Register.Index].value;
+            printf("Register: %s, Index: %d, currentValue: %d, nextValue: %d\n", registerValue.reg, decodedInstruction.Operands[1].Register.Index, currentRegisterValue, registerValue.value);
+        }
+        else if (decodedInstruction.Operands[1].Type == Operand_Immediate)
+        {
+            registerValue.value = decodedInstruction.Operands[1].Immediate.Value;
+            printf("Register: %s, Index: %d, currentValue: %d, nextValue: %d\n", registerValue.reg, decodedInstruction.Operands[1].Register.Index, currentRegisterValue, registerValue.value);
+        }
         registerValues[index++] = registerValue;
 
         fprintf(outputFile, "%s ", Sim86_MnemonicFromOperationType(decodedInstruction.Op));
@@ -151,17 +167,4 @@ static char *ReadFile(const char *filePath, size_t *size)
 
     // Return the buffer that contains file content
     return buffer;
-}
-
-static int32_t GetRegisterValue(const char *name, RegisterValue *registerValues, int32_t size)
-{
-    for (int i = 0; i < size; i++)
-    {
-        if (strncmp(name, registerValues[i].reg, 100) == 0)
-        {
-            return registerValues[i].value;
-        }
-    }
-
-    return 0;
 }
