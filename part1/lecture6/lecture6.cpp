@@ -63,7 +63,6 @@ int32_t main(int32_t argc, char *argv[])
 
     RegisterValue registerValues[20] = {0};
     int32_t offset = 0;
-    int32_t index = 1;
     while (offset < fileSize)
     {
         instruction decodedInstruction;
@@ -74,6 +73,7 @@ int32_t main(int32_t argc, char *argv[])
             printf("Unrecognized instruction\n");
             break;
         }
+        fprintf(outputFile, "%s ", Sim86_MnemonicFromOperationType(decodedInstruction.Op));
 
         offset += decodedInstruction.Size;
 
@@ -83,6 +83,7 @@ int32_t main(int32_t argc, char *argv[])
         {
             strncpy(registerValue.reg, Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register), 100);
             currentRegisterValue = registerValues[decodedInstruction.Operands[0].Register.Index].value;
+            fprintf(outputFile, "%s, ", registerValue.reg);
         }
         else
         {
@@ -92,29 +93,28 @@ int32_t main(int32_t argc, char *argv[])
         if (decodedInstruction.Operands[1].Type == Operand_Register)
         {
             registerValue.value = registerValues[decodedInstruction.Operands[1].Register.Index].value;
-            printf("Register: %s, Index: %d, currentValue: %d, nextValue: %d\n", registerValue.reg, decodedInstruction.Operands[1].Register.Index, currentRegisterValue, registerValue.value);
+            char rhsRegister[100];
+            strncpy(rhsRegister, Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[1].Register), 100);
+            fprintf(outputFile, "%s; ", rhsRegister);
         }
         else if (decodedInstruction.Operands[1].Type == Operand_Immediate)
         {
             registerValue.value = decodedInstruction.Operands[1].Immediate.Value;
-            printf("Register: %s, Index: %d, currentValue: %d, nextValue: %d\n", registerValue.reg, decodedInstruction.Operands[1].Register.Index, currentRegisterValue, registerValue.value);
+            fprintf(outputFile, "%d; ", registerValue.value);
         }
-        registerValues[index++] = registerValue;
+        registerValues[decodedInstruction.Operands[0].Register.Index] = registerValue;
 
-        fprintf(outputFile, "%s ", Sim86_MnemonicFromOperationType(decodedInstruction.Op));
-        fprintf(outputFile, "%s, ", registerValue.reg);
-        fprintf(outputFile, "%d; ", registerValue.value);
-        fprintf(outputFile, "%s: 0x%x -> ", registerValue.reg, currentRegisterValue);
+        fprintf(outputFile, "%s:0x%x -> ", registerValue.reg, currentRegisterValue);
         fprintf(outputFile, "0x%x\n", registerValue.value);
     }
 
-    fprintf(outputFile, "\nFinal Registers\n\n");
+    fprintf(outputFile, "\nFinal Registers\n");
 
     for (int i = 0; i < ArrayCount(registerValues); i++)
     {
         if (registerValues[i].reg[0] == '\0')
         {
-            break;
+            continue;
         }
 
         fprintf(outputFile, "    %s: ", registerValues[i].reg);
