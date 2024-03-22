@@ -1,4 +1,3 @@
-#include <cstdint>
 #include <exception>
 #include <ostream>
 #include <vector>
@@ -13,16 +12,80 @@
 #define MAX_SIZE          100
 #define ArrayCount(array) (sizeof(array) / sizeof(array[0]))
 
+enum class Flags
+{
+    None,
+    Zero,
+    Sign
+};
+
+class Flag
+{
+private:
+    Flags previousFlag = Flags::None;
+    Flags currentFlag = Flags::None;
+    std::string GetName(Flags flag)
+    {
+        switch (flag)
+        {
+            case Flags::Zero:
+                return "ZF";
+            case Flags::Sign:
+                return "SF";
+            default:
+                return "";
+        }
+    }
+
+public:
+    void Set(const int value)
+    {
+        if (value == 0)
+        {
+            currentFlag = Flags::Zero;
+        }
+        else if (value & 0x8000)
+        {
+            currentFlag = Flags::Sign;
+        }
+        else
+        {
+            currentFlag = Flags::None;
+        }
+    }
+
+    std::string GetName()
+    {
+        return GetName(currentFlag);
+    }
+
+    std::string GetFlagChangeString()
+    {
+        if (previousFlag != currentFlag)
+        {
+            std::string string = "; Flags:" + GetName(previousFlag) + "->" + GetName(currentFlag);
+            previousFlag = currentFlag;
+            return string;
+        }
+        else
+        {
+            return "";
+        }
+    }
+};
+
+static Flag flag;
+
 struct RegisterValue
 {
     std::string reg;
-    int32_t index;
-    int32_t value;
+    int index;
+    int value;
 };
 
 void Application(int argc, char *argv[]);
 static std::vector<char> ReadFile(const std::string &filePath);
-static int32_t GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int32_t index);
+static int GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int index);
 static void InsertRegisterValue(std::vector<RegisterValue> *registerValues, const RegisterValue &regValue);
 
 int main(int argc, char *argv[])
@@ -49,7 +112,6 @@ void Application(int argc, char *argv[])
 
     instruction_table table;
     Sim86_Get8086InstructionTable(&table);
-    std::cout << "8086 Instruction Instruction Encoding Count: " << table.EncodingCount << '\n';
 
     std::ofstream outputFile("output.txt");
     if (!outputFile)
@@ -60,7 +122,7 @@ void Application(int argc, char *argv[])
     outputFile << "bits 16\n\n";
 
     std::vector<RegisterValue> registerValues;
-    int32_t offset = 0;
+    int offset = 0;
     while (offset < fileContent.size())
     {
         instruction decodedInstruction;
@@ -77,11 +139,11 @@ void Application(int argc, char *argv[])
         RegisterValue registerValue;
         registerValue.index = decodedInstruction.Operands[0].Register.Index;
 
-        int32_t currentRegisterValue = 0;
+        int lhsValue = 0;
         if (decodedInstruction.Operands[0].Type == Operand_Register)
         {
             registerValue.reg = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register);
-            currentRegisterValue = GetRegisterValueByIndex(registerValues, registerValue.index);
+            lhsValue = GetRegisterValueByIndex(registerValues, registerValue.index);
             outputFile << registerValue.reg << ", ";
         }
         else
@@ -89,20 +151,45 @@ void Application(int argc, char *argv[])
             throw std::runtime_error("First operand must be a register");
         }
 
-        if (decodedInstruction.Operands[1].Type == Operand_Register)
+        int rhsOperandType = decodedInstruction.Operands[1].Type;
+        int rhsValue = 0;
+
+        if (rhsOperandType == Operand_Register)
         {
-            registerValue.value =
-                GetRegisterValueByIndex(registerValues, decodedInstruction.Operands[1].Register.Index);
+            rhsValue = GetRegisterValueByIndex(registerValues, decodedInstruction.Operands[1].Register.Index);
             outputFile << Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[1].Register) << "; ";
+            std::cout << "rhs is a register\n";
         }
-        else if (decodedInstruction.Operands[1].Type == Operand_Immediate)
+        else if (rhsOperandType == Operand_Immediate)
         {
-            registerValue.value = decodedInstruction.Operands[1].Immediate.Value;
-            outputFile << registerValue.value << "; ";
+            rhsValue = decodedInstruction.Operands[1].Immediate.Value;
+            outputFile << rhsValue << "; ";
         }
 
-        outputFile << registerValue.reg << ":0x" << std::hex << currentRegisterValue << " -> ";
-        outputFile << "0x" << registerValue.value << '\n';
+        switch (decodedInstruction.Op)
+        {
+            case Op_mov:
+                registerValue.value = rhsValue;
+                break;
+            case Op_sub:
+                registerValue.value = lhsValue - rhsValue;
+                flag.Set(registerValue.value);
+                break;
+            case Op_cmp:
+                flag.Set(lhsValue - rhsValue);
+                break;
+            case Op_add:
+                registerValue.value = lhsValue + rhsValue;
+                flag.Set(registerValue.value);
+                break;
+            default:
+                throw std::runtime_error("Unsupported operation");
+        }
+
+        outputFile << registerValue.reg << ":0x" << std::hex << lhsValue << std::dec << " -> ";
+        outputFile << "0x" << std::hex << registerValue.value << std::dec;
+        outputFile << flag.GetFlagChangeString();
+        outputFile << '\n';
 
         InsertRegisterValue(&registerValues, registerValue);
         offset += decodedInstruction.Size;
@@ -112,8 +199,11 @@ void Application(int argc, char *argv[])
     for (const auto &registerValue : registerValues)
     {
         outputFile << "    " << registerValue.reg << ": ";
-        outputFile << "0x" << std::hex << registerValue.value << " (" << std::dec << registerValue.value << ")\n";
+        outputFile << "0x" << std::hex << registerValue.value << std::dec << " (" << registerValue.value << ")";
+        outputFile << '\n';
     }
+
+    outputFile << "Flags: " << flag.GetName() << '\n';
 }
 
 
@@ -137,41 +227,29 @@ static std::vector<char> ReadFile(const std::string &filePath)
     return buffer;
 }
 
-static int32_t GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int32_t index)
+static int GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int index)
 {
-    if (index < 1)
+    for (const auto &registerValue : registerValues)
     {
-        throw std::runtime_error("Invalid register index");
+        if (registerValue.index == index)
+        {
+            return registerValue.value;
+        }
     }
 
-    // Does not exist yet, so the register value is 0.
-    if (index > registerValues.size())
-    {
-        return 0;
-    }
-
-    // Adjust the index to start from 1
-    int adjustedIndex = index - 1;
-
-    return registerValues[adjustedIndex].value;
+    return 0;
 }
 
 static void InsertRegisterValue(std::vector<RegisterValue> *registerValues, const RegisterValue &regValue)
 {
-    if (regValue.index < 1)
+    for (auto &registerValue : *registerValues)
     {
-        throw std::runtime_error("Invalid register index");
+        if (registerValue.index == regValue.index)
+        {
+            registerValue = regValue;
+            return;
+        }
     }
 
-    // Adjust the index to start from 1
-    int32_t adjustedIndex = regValue.index - 1;
-
-    if (adjustedIndex < registerValues->size())
-    {
-        registerValues->at(adjustedIndex) = regValue;
-    }
-    else
-    {
-        registerValues->push_back(regValue);
-    }
+    registerValues->push_back(regValue);
 }
