@@ -32,8 +32,8 @@ struct RegisterValue
 class Flag
 {
 private:
-    Flags previousFlag = Flags::None;
-    Flags currentFlag = Flags::None;
+    Flags previous = Flags::None;
+
     std::string GetName(Flags flag)
     {
         switch (flag)
@@ -48,33 +48,35 @@ private:
     }
 
 public:
-    void Set(const int value)
+    Flags value = Flags::None;
+
+    void SetFlagBasedOnValue(const uint16_t value)
     {
         if (value == 0)
         {
-            currentFlag = Flags::Zero;
+            this->value = Flags::Zero;
         }
         else if (value & 0x8000)
         {
-            currentFlag = Flags::Sign;
+            this->value = Flags::Sign;
         }
         else
         {
-            currentFlag = Flags::None;
+            this->value = Flags::None;
         }
     }
 
     std::string GetName()
     {
-        return GetName(currentFlag);
+        return GetName(value);
     }
 
     std::string GetFlagChangeString()
     {
-        if (previousFlag != currentFlag)
+        if (previous != value)
         {
-            std::string string = "; Flags:" + GetName(previousFlag) + " -> " + GetName(currentFlag);
-            previousFlag = currentFlag;
+            std::string string = "; Flags:" + GetName(previous) + " -> " + GetName(value);
+            previous = value;
             return string;
         }
         else
@@ -96,13 +98,6 @@ public:
     {
         previous = value;
         value += rhs;
-        return *this;
-    }
-
-    InstructionPointer &operator-=(const uint16_t rhs)
-    {
-        previous = value;
-        value -= rhs;
         return *this;
     }
 
@@ -177,11 +172,17 @@ void Application(int argc, char *argv[])
         RegisterValue registerValue;
         registerValue.index = decodedInstruction.Operands[0].Register.Index;
         int lhsValue = 0;
-        if (decodedInstruction.Operands[0].Type == Operand_Register)
+        int lhsOperandType = decodedInstruction.Operands[0].Type;
+        if (lhsOperandType == Operand_Register)
         {
             registerValue.reg = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register);
             lhsValue = GetRegisterValueByIndex(registerValues, registerValue.index);
             outputFile << registerValue.reg << ", ";
+        }
+        else if (lhsOperandType == Operand_Immediate)
+        {
+            lhsValue = decodedInstruction.Operands[0].Immediate.Value;
+            outputFile << "$" << lhsValue << ", ";
         }
         else
         {
@@ -201,6 +202,7 @@ void Application(int argc, char *argv[])
             rhsValue = decodedInstruction.Operands[1].Immediate.Value;
             outputFile << rhsValue << "; ";
         }
+
         switch (decodedInstruction.Op)
         {
             case Op_mov:
@@ -208,39 +210,57 @@ void Application(int argc, char *argv[])
                 break;
             case Op_sub:
                 registerValue.value = lhsValue - rhsValue;
-                flag.Set(registerValue.value);
+                flag.SetFlagBasedOnValue(registerValue.value);
                 break;
             case Op_cmp:
-                flag.Set(lhsValue - rhsValue);
+                flag.SetFlagBasedOnValue(lhsValue - rhsValue);
                 break;
             case Op_add:
                 registerValue.value = lhsValue + rhsValue;
-                flag.Set(registerValue.value);
+                flag.SetFlagBasedOnValue(registerValue.value);
+                break;
+            case Op_jne:
+                if (flag.value != Flags::Zero)
+                {
+                    printf("lhsValue: %d, rhsValue: %d\n", lhsValue, rhsValue);
+                    printf("ip: %d\n", ip.value);
+                    ip += lhsValue;
+                }
                 break;
             default:
                 throw std::runtime_error("Unsupported operation");
         }
 
-        // Print register values before and after
-        outputFile << registerValue.reg << ":0x" << std::hex << lhsValue << std::dec << " -> ";
-        outputFile << "0x" << std::hex << registerValue.value << std::dec << "; ";
+        if (lhsOperandType == Operand_Register)
+        {
+            // Print register values before and after
+            outputFile << registerValue.reg << ":0x" << std::hex << lhsValue << std::dec << " -> ";
+            outputFile << "0x" << std::hex << registerValue.value << std::dec << "; ";
+
+            // Update the register values
+            InsertRegisterValue(&registerValues, registerValue);
+        }
 
         // Print the instruction pointer
         outputFile << ip.GetChangeString();
 
-        // Print the flags if there is a change
-        outputFile << flag.GetFlagChangeString();
+        if (lhsOperandType == Operand_Register)
+        {
+            // Print the flags if there is a change
+            outputFile << flag.GetFlagChangeString();
+        }
 
         // End of intstruction
         outputFile << '\n';
-
-        // Update the register values
-        InsertRegisterValue(&registerValues, registerValue);
     }
 
     outputFile << "\nFinal Registers\n";
     for (const auto &registerValue : registerValues)
     {
+        if (registerValue.value == 0)
+        {
+            continue;
+        }
         outputFile << "    " << registerValue.reg << ": ";
         outputFile << "0x" << std::setfill('0') << std::setw(4) << std::hex << registerValue.value << std::dec << " ("
                    << registerValue.value << ")";
