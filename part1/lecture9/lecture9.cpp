@@ -23,11 +23,17 @@ enum class Flags
     Zero,
     Sign
 };
-struct RegisterValue
+struct Register
 {
-    std::string reg;
-    int index;
+    std::string name;
     uint16_t value;
+    uint16_t index;
+};
+struct Memory
+{
+    std::string name;
+    uint16_t value;
+    uint16_t address;
 };
 class Flag
 {
@@ -112,9 +118,10 @@ public:
 // Function prototypes
 void Application(int argc, char *argv[]);
 static std::vector<char> ReadFile(const std::string &filePath);
-static int GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int index);
-static void InsertRegisterValue(std::vector<RegisterValue> *registerValues, const RegisterValue &regValue);
-
+static void SetRegister(std::vector<Register> *registers, const Register &reg);
+static Register GetRegister(const std::vector<Register> &registers, uint16_t index);
+static Memory GetMemory(const std::vector<Memory> &memory, uint16_t address);
+static void SetMemory(std::vector<Memory> *memory, const Memory &mem);
 
 int main(int argc, char *argv[])
 {
@@ -147,7 +154,8 @@ void Application(int argc, char *argv[])
         throw std::runtime_error("Failed to open output file");
     }
 
-    std::vector<RegisterValue> registerValues;
+    std::vector<Register> registers;
+    std::vector<Memory> memory;
 
     InstructionPointer ip;
     Flag flag;
@@ -168,33 +176,50 @@ void Application(int argc, char *argv[])
         // Print the mnemonic
         outputFile << Sim86_MnemonicFromOperationType(decodedInstruction.Op) << ' ';
 
-        // Print the left hand side value
-        RegisterValue registerValue;
-        registerValue.index = decodedInstruction.Operands[0].Register.Index;
+        // Print the left hand side
         int lhsValue = 0;
         int lhsOperandType = decodedInstruction.Operands[0].Type;
-        if (lhsOperandType == Operand_Register)
+        switch (lhsOperandType)
         {
-            registerValue.reg = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register);
-            lhsValue = GetRegisterValueByIndex(registerValues, registerValue.index);
-            outputFile << registerValue.reg << ", ";
-        }
-        else if (lhsOperandType == Operand_Immediate)
-        {
-            lhsValue = decodedInstruction.Operands[0].Immediate.Value;
-            outputFile << "$" << lhsValue << ", ";
-        }
-        else
-        {
-            throw std::runtime_error("First operand must be a register");
+            case Operand_Register:
+            {
+                Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
+                reg.name = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register);
+                SetRegister(&registers, reg);
+
+                lhsValue = reg.value;
+                outputFile << reg.name << ", ";
+            }
+            break;
+
+            case Operand_Memory:
+            {
+                Memory mem = GetMemory(memory, decodedInstruction.Operands[0].Address.Displacement);
+                mem.name = "word";
+                SetMemory(&memory, mem);
+
+                lhsValue = mem.value;
+                outputFile << mem.name << " [+" << mem.address << "], ";
+            }
+            break;
+
+            case Operand_Immediate:
+                lhsValue = decodedInstruction.Operands[0].Immediate.Value;
+                outputFile << "$" << lhsValue << ", ";
+                break;
+
+            default:
+                printf("lhsOperandType: %d\n", lhsOperandType);
+                throw std::runtime_error("First operand is not yet supported");
+                break;
         }
 
-        // Print the right hand side value and calculate the result
+        // Print the right hand side and calculate the value
         int rhsOperandType = decodedInstruction.Operands[1].Type;
         int rhsValue = 0;
         if (rhsOperandType == Operand_Register)
         {
-            rhsValue = GetRegisterValueByIndex(registerValues, decodedInstruction.Operands[1].Register.Index);
+            rhsValue = GetRegister(registers, decodedInstruction.Operands[1].Register.Index).value;
             outputFile << Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[1].Register) << "; ";
         }
         else if (rhsOperandType == Operand_Immediate)
@@ -206,39 +231,64 @@ void Application(int argc, char *argv[])
         switch (decodedInstruction.Op)
         {
             case Op_mov:
-                registerValue.value = rhsValue;
+                if (lhsOperandType == Operand_Register)
+                {
+                    Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
+                    reg.value = rhsValue;
+                    SetRegister(&registers, reg);
+                }
                 break;
+
             case Op_sub:
-                registerValue.value = lhsValue - rhsValue;
-                flag.SetFlagBasedOnValue(registerValue.value);
-                break;
+            {
+                if (lhsOperandType == Operand_Register)
+                {
+                    Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
+                    reg.value = lhsValue - rhsValue;
+                    SetRegister(&registers, reg);
+
+                    flag.SetFlagBasedOnValue(reg.value);
+                }
+            }
+            break;
+
+            case Op_add:
+            {
+                if (lhsOperandType == Operand_Register)
+                {
+                    Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
+                    reg.value = lhsValue + rhsValue;
+                    SetRegister(&registers, reg);
+
+                    flag.SetFlagBasedOnValue(reg.value);
+                }
+            }
+            break;
+
             case Op_cmp:
                 flag.SetFlagBasedOnValue(lhsValue - rhsValue);
                 break;
-            case Op_add:
-                registerValue.value = lhsValue + rhsValue;
-                flag.SetFlagBasedOnValue(registerValue.value);
-                break;
+
             case Op_jne:
                 if (flag.value != Flags::Zero)
                 {
-                    printf("lhsValue: %d, rhsValue: %d\n", lhsValue, rhsValue);
-                    printf("ip: %d\n", ip.value);
                     ip += lhsValue;
                 }
                 break;
+
             default:
                 throw std::runtime_error("Unsupported operation");
         }
 
         if (lhsOperandType == Operand_Register)
         {
-            // Print register values before and after
-            outputFile << registerValue.reg << ":0x" << std::hex << lhsValue << std::dec << " -> ";
-            outputFile << "0x" << std::hex << registerValue.value << std::dec << "; ";
+            Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
 
-            // Update the register values
-            InsertRegisterValue(&registerValues, registerValue);
+            // Print register value before
+            outputFile << reg.name << ":0x" << std::hex << lhsValue << std::dec << " -> ";
+
+            // Print register value after
+            outputFile << "0x" << std::hex << reg.value << std::dec << "; ";
         }
 
         // Print the instruction pointer
@@ -255,15 +305,15 @@ void Application(int argc, char *argv[])
     }
 
     outputFile << "\nFinal Registers\n";
-    for (const auto &registerValue : registerValues)
+    for (const auto &reg : registers)
     {
-        if (registerValue.value == 0)
+        if (reg.value == 0)
         {
             continue;
         }
-        outputFile << "    " << registerValue.reg << ": ";
-        outputFile << "0x" << std::setfill('0') << std::setw(4) << std::hex << registerValue.value << std::dec << " ("
-                   << registerValue.value << ")";
+        outputFile << "    " << reg.name << ": ";
+        outputFile << "0x" << std::setfill('0') << std::setw(4) << std::hex << reg.value << std::dec << " ("
+                   << reg.value << ")";
         outputFile << '\n';
     }
 
@@ -293,29 +343,57 @@ static std::vector<char> ReadFile(const std::string &filePath)
     return buffer;
 }
 
-static int GetRegisterValueByIndex(const std::vector<RegisterValue> &registerValues, int index)
+static Register GetRegister(const std::vector<Register> &registers, uint16_t index)
 {
-    for (const auto &registerValue : registerValues)
+    for (const auto &entry : registers)
     {
-        if (registerValue.index == index)
+        if (entry.index == index)
         {
-            return registerValue.value;
+            return entry;
         }
     }
 
-    return 0;
+    return Register({"", 0, index});
 }
 
-static void InsertRegisterValue(std::vector<RegisterValue> *registerValues, const RegisterValue &regValue)
+static void SetRegister(std::vector<Register> *registers, const Register &reg)
 {
-    for (auto &registerValue : *registerValues)
+    for (auto &entry : *registers)
     {
-        if (registerValue.index == regValue.index)
+        if (entry.index == reg.index)
         {
-            registerValue = regValue;
+            entry = reg;
             return;
         }
     }
 
-    registerValues->push_back(regValue);
+    registers->push_back(reg);
+}
+
+static Memory GetMemory(const std::vector<Memory> &memory, uint16_t address)
+{
+    for (const auto &entry : memory)
+    {
+        if (entry.address == address)
+        {
+            return entry;
+        }
+    }
+
+    // TODO: Create memory
+    return Memory({"", 0, address});
+}
+
+static void SetMemory(std::vector<Memory> *memory, const Memory &mem)
+{
+    for (auto &entry : *memory)
+    {
+        if (entry.address == mem.address)
+        {
+            entry = mem;
+            return;
+        }
+    }
+
+    memory->push_back(mem);
 }

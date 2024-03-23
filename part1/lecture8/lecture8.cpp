@@ -222,8 +222,6 @@ void Application(int argc, char *argv[])
             case Op_jne:
                 if (flag.value != Flags::Zero)
                 {
-                    printf("lhsValue: %d, rhsValue: %d\n", lhsValue, rhsValue);
-                    printf("ip: %d\n", ip.value);
                     ip += lhsValue;
                 }
                 break;
