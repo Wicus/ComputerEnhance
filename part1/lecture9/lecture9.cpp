@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <exception>
 #include <iomanip>
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <vector>
@@ -118,10 +119,10 @@ public:
 // Function prototypes
 void Application(int argc, char *argv[]);
 static std::vector<char> ReadFile(const std::string &filePath);
-static void SetRegister(std::vector<Register> *registers, const Register &reg);
+static void InsertIntoRegister(std::vector<Register> *registers, const Register &reg);
 static Register GetRegister(const std::vector<Register> &registers, uint16_t index);
-static Memory GetMemory(const std::vector<Memory> &memory, uint16_t address);
-static void SetMemory(std::vector<Memory> *memory, const Memory &mem);
+static Memory GetMemory(const std::unique_ptr<std::vector<Memory> > &memory, uint16_t address);
+static void InsertIntoMemory(std::unique_ptr<std::vector<Memory> > &memory, const Memory &mem);
 
 int main(int argc, char *argv[])
 {
@@ -155,7 +156,7 @@ void Application(int argc, char *argv[])
     }
 
     std::vector<Register> registers;
-    std::vector<Memory> memory;
+    std::unique_ptr<std::vector<Memory> > memory = std::make_unique<std::vector<Memory> >(1024 * 1024);
 
     InstructionPointer ip;
     Flag flag;
@@ -185,7 +186,7 @@ void Application(int argc, char *argv[])
             {
                 Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
                 reg.name = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[0].Register);
-                SetRegister(&registers, reg);
+                InsertIntoRegister(&registers, reg);
 
                 lhsValue = reg.value;
                 outputFile << reg.name << ", ";
@@ -196,7 +197,7 @@ void Application(int argc, char *argv[])
             {
                 Memory mem = GetMemory(memory, decodedInstruction.Operands[0].Address.Displacement);
                 mem.name = "word";
-                SetMemory(&memory, mem);
+                InsertIntoMemory(memory, mem);
 
                 lhsValue = mem.value;
                 outputFile << mem.name << " [+" << mem.address << "], ";
@@ -227,6 +228,17 @@ void Application(int argc, char *argv[])
             rhsValue = decodedInstruction.Operands[1].Immediate.Value;
             outputFile << rhsValue << "; ";
         }
+        else if (rhsOperandType == Operand_Memory)
+        {
+            printf("Memory: %d\n", decodedInstruction.Operands[1].Address.Displacement);
+            Memory mem = GetMemory(memory, decodedInstruction.Operands[1].Address.Displacement);
+            rhsValue = mem.value;
+            outputFile << "[+" << mem.address << "]; ";
+        }
+        else
+        {
+            throw std::runtime_error("Second operand is not yet supported");
+        }
 
         switch (decodedInstruction.Op)
         {
@@ -235,7 +247,14 @@ void Application(int argc, char *argv[])
                 {
                     Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
                     reg.value = rhsValue;
-                    SetRegister(&registers, reg);
+                    printf("Register %s, value: %d\n", reg.name.c_str(), reg.value);
+                    InsertIntoRegister(&registers, reg);
+                }
+                else if (lhsOperandType == Operand_Memory)
+                {
+                    Memory mem = GetMemory(memory, decodedInstruction.Operands[0].Address.Displacement);
+                    mem.value = rhsValue;
+                    InsertIntoMemory(memory, mem);
                 }
                 break;
 
@@ -245,7 +264,7 @@ void Application(int argc, char *argv[])
                 {
                     Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
                     reg.value = lhsValue - rhsValue;
-                    SetRegister(&registers, reg);
+                    InsertIntoRegister(&registers, reg);
 
                     flag.SetFlagBasedOnValue(reg.value);
                 }
@@ -258,7 +277,7 @@ void Application(int argc, char *argv[])
                 {
                     Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
                     reg.value = lhsValue + rhsValue;
-                    SetRegister(&registers, reg);
+                    InsertIntoRegister(&registers, reg);
 
                     flag.SetFlagBasedOnValue(reg.value);
                 }
@@ -356,7 +375,7 @@ static Register GetRegister(const std::vector<Register> &registers, uint16_t ind
     return Register({"", 0, index});
 }
 
-static void SetRegister(std::vector<Register> *registers, const Register &reg)
+static void InsertIntoRegister(std::vector<Register> *registers, const Register &reg)
 {
     for (auto &entry : *registers)
     {
@@ -370,9 +389,9 @@ static void SetRegister(std::vector<Register> *registers, const Register &reg)
     registers->push_back(reg);
 }
 
-static Memory GetMemory(const std::vector<Memory> &memory, uint16_t address)
+static Memory GetMemory(const std::unique_ptr<std::vector<Memory> > &memory, uint16_t address)
 {
-    for (const auto &entry : memory)
+    for (const auto &entry : *memory)
     {
         if (entry.address == address)
         {
@@ -380,17 +399,17 @@ static Memory GetMemory(const std::vector<Memory> &memory, uint16_t address)
         }
     }
 
-    // TODO: Create memory
     return Memory({"", 0, address});
 }
 
-static void SetMemory(std::vector<Memory> *memory, const Memory &mem)
+static void InsertIntoMemory(std::unique_ptr<std::vector<Memory> > &memory, const Memory &mem)
 {
     for (auto &entry : *memory)
     {
         if (entry.address == mem.address)
         {
             entry = mem;
+            printf("Memory: %s, value: %d, address: %d\n", mem.name.c_str(), mem.value, mem.address);
             return;
         }
     }
