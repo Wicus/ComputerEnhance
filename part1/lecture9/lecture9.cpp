@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <exception>
 #include <iomanip>
+#include <memory>
 #include <ostream>
 #include <sstream>
 #include <vector>
@@ -27,7 +28,7 @@ enum class Flags
 struct Access
 {
     std::string name = "";
-    uint16_t value = 0;
+    int32_t value = 0;
     operand_type type = Operand_None;
     union
     {
@@ -233,7 +234,8 @@ void Application(int argc, char *argv[])
                 uint16_t memAddress = decodedInstruction.Operands[0].Address.Displacement + lhsReg->value;
                 lhs = memoryAccess.Get(memAddress);
 
-                outputFile << lhs->name << " [" << lhsReg->name << "+" << decodedInstruction.Operands[0].Address.Displacement << "], ";
+                outputFile << lhs->name << " [" << lhsReg->name << "+"
+                           << decodedInstruction.Operands[0].Address.Displacement << "], ";
                 lhs->name = "word";
             }
             break;
@@ -278,6 +280,9 @@ void Application(int argc, char *argv[])
                 outputFile << rhs->value << "; ";
             }
             break;
+
+            case Operand_None:
+                break;
 
             default:
                 printf("rhsOperandType: %d\n", rhs->type);
@@ -338,8 +343,6 @@ void Application(int argc, char *argv[])
 
         if (lhs->type == Operand_Register)
         {
-            Register reg = GetRegister(registers, decodedInstruction.Operands[0].Register.Index);
-
             // Print register value before
             outputFile << lhs->name << ":0x" << std::hex << lhs->value << std::dec << " -> ";
 
@@ -363,7 +366,8 @@ void Application(int argc, char *argv[])
     outputFile << "\nFinal Registers\n";
     for (int i = 0; i < registerAccess.registers.size(); i++)
     {
-        if (registerAccess.registers.at(i) == NULL)
+        std::shared_ptr<Access> access = registerAccess.registers.at(i);
+        if (access == NULL || access->value == 0)
         {
             continue;
         }
