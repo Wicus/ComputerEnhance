@@ -26,26 +26,34 @@ enum class Flags
     Sign
 };
 
+struct MemoryVariant
+{
+    uint16_t address;
+    int32_t displacement;
+};
+
+struct Data
+{
+    uint16_t index;
+    MemoryVariant memory;
+};
+
 struct Access
 {
     std::string name = "";
     int32_t value = 0;
     operand_type type = Operand_None;
-    union
-    {
-        uint16_t index = 0;
-        uint16_t address;
-    };
+    Data data;
     Access() = default;
     Access(const operand_type type) : type(type)
     {
         if (type == Operand_Memory)
         {
-            address = 0;
+            data.memory = MemoryVariant{0, 0};
         }
         else
         {
-            index = 0;
+            data.index = 0;
         }
     }
 };
@@ -59,7 +67,7 @@ struct RegisterAccess
         if (registers.at(index) == NULL)
         {
             registers.at(index) = std::make_shared<Access>(Operand_Register);
-            registers.at(index)->index = index;
+            registers.at(index)->data.index = index;
         }
         return registers.at(index);
     }
@@ -69,13 +77,16 @@ struct MemoryAccess
 {
     std::vector<std::shared_ptr<Access> > memory = std::vector<std::shared_ptr<Access> >(1024 * 1024);
 
-    std::shared_ptr<Access> Get(uint16_t address)
+    std::shared_ptr<Access> Get(int32_t regValue, int32_t displacement)
     {
+        int32_t address = regValue + displacement;
         if (memory.at(address) == NULL)
         {
             memory.at(address) = std::make_shared<Access>(Operand_Memory);
-            memory.at(address)->address = address;
+            memory.at(address)->data.memory.address = address;
+            memory.at(address)->name = "word";
         }
+        memory.at(address)->data.memory.displacement = displacement;
         return memory.at(address);
     }
 };
@@ -233,18 +244,14 @@ void Application(int argc, char *argv[])
             case Operand_Memory:
             {
                 std::shared_ptr<Access> lhsReg = registerAccess.Get(decodedInstruction.Operands[0].Register.Index);
-                uint16_t memAddress = decodedInstruction.Operands[0].Address.Displacement + lhsReg->value;
-                lhs = memoryAccess.Get(memAddress);
-                lhs->name = "word";
-
-                if (decodedInstruction.Operands[0].Address.Displacement == 0)
+                lhs = memoryAccess.Get(lhsReg->value, decodedInstruction.Operands[0].Address.Displacement);
+                if (lhs->data.memory.displacement == 0)
                 {
                     outputFile << lhs->name << " [" << lhsReg->name << "], ";
                 }
                 else
                 {
-                    outputFile << lhs->name << " [" << lhsReg->name << "+"
-                               << decodedInstruction.Operands[0].Address.Displacement << "], ";
+                    outputFile << lhs->name << " [" << lhsReg->name << "+" << lhs->data.memory.displacement << "], ";
                 }
             }
             break;
@@ -277,8 +284,8 @@ void Application(int argc, char *argv[])
 
             case Operand_Memory:
             {
-                rhs = memoryAccess.Get(decodedInstruction.Operands[1].Address.Displacement);
-                if (rhs->address == 0)
+                rhs = memoryAccess.Get(0, decodedInstruction.Operands[1].Address.Displacement);
+                if (rhs->data.memory.address == 0)
                 {
                     rhs->name = Sim86_RegisterNameFromOperand(&decodedInstruction.Operands[1].Register);
                     outputFile << "[" << rhs->name << "]; ";
@@ -286,7 +293,11 @@ void Application(int argc, char *argv[])
                 else
                 {
                     std::shared_ptr<Access> rhsReg = registerAccess.Get(decodedInstruction.Operands[1].Register.Index);
-                    outputFile << "[" << rhsReg->name << "+" << rhs->address << "]; ";
+                    outputFile << "["
+                               << (rhs->data.memory.address == 0
+                                       ? rhsReg->name
+                                       : (rhsReg->name + "+" + std::to_string(rhs->data.memory.address)))
+                               << "]; ";
                 }
             }
             break;
@@ -367,38 +378,38 @@ void Application(int argc, char *argv[])
         }
         else if (lhs->type == Operand_Register && rhs->type == Operand_Register)
         {
-            int cycles = 2;
-            if (decodedInstruction.Op == Op_add) {
-                cycles = 3;
-            }
+            int cycles = decodedInstruction.Op == Op_add ? 3 : 2;
             clocks += cycles;
             outputFile << "Clocks: + " << cycles << " = " << clocks << " | ";
         }
         else if (lhs->type == Operand_Register && rhs->type == Operand_Memory)
         {
             int cycles = 8;
-            int effectiveAddressCalculation = 5;
+            int effectiveAddress = 5;
             std::shared_ptr<Access> rhsReg = registerAccess.Get(decodedInstruction.Operands[1].Register.Index);
-            if (decodedInstruction.Operands[1].Address.Displacement > 0 && rhsReg->value >0) {
-                effectiveAddressCalculation = 9;
-            }
-            else if (rhs->address > 0)
+            if (rhs->data.memory.displacement > 0 && rhsReg->value > 0)
             {
-                effectiveAddressCalculation = 6;
+                effectiveAddress = 9;
+            }
+            else if (rhs->data.memory.address > 0)
+            {
+                effectiveAddress = 6;
             }
 
-            clocks += cycles + effectiveAddressCalculation;
-            outputFile << "Clocks: + " << cycles + effectiveAddressCalculation << " = " << clocks << " ( " << cycles
-                       << " + " << effectiveAddressCalculation << "ea ) | ";
+            clocks += cycles + effectiveAddress;
+            outputFile << "Clocks: + " << cycles + effectiveAddress << " = " << clocks << " ( " << cycles
+                       << " + " << effectiveAddress << "ea ) | ";
         }
         else if (lhs->type == Operand_Memory && rhs->type == Operand_Register)
         {
             int cycles = 9;
             int effectiveAddressCalculation = 5;
-            if (decodedInstruction.Operands[0].Address.Displacement > 0) {
+            if (lhs->data.memory.displacement > 0)
+            {
                 effectiveAddressCalculation = 9;
             }
-            if (decodedInstruction.Op == Op_add) {
+            if (decodedInstruction.Op == Op_add)
+            {
                 cycles = 16;
             }
             clocks += cycles + effectiveAddressCalculation;
