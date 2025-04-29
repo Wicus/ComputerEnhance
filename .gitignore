@@ -12,3 +12,65 @@ part1/lecture1/out.asm
 part1/lecture1/vc140.pdb
 manuals/8086_family_Users_Manual_1_.pdf
 part1/lecture1/output.asm
+
+# .gitignore for multiple .NET solutions in subfolders
+
+# Ignore build output folders anywhere
+**/bin/
+**/obj/
+**/out/
+
+# Ignore Visual Studio folders and files anywhere
+**/.vs/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# Rider files anywhere
+**/.idea/
+
+# NuGet packages anywhere
+**/*.nupkg
+**/packages/
+**/.nuget/
+
+# ASP.NET temporary files anywhere
+**/App_Data/
+**/App_WebReferences/
+
+# Publish output anywhere
+**/publish/
+
+# Resharper anywhere
+**/_ReSharper*/
+**/*.[Rr]e[Ss]harper
+
+# DotCover anywhere
+**/*.dotCover
+
+# Coverage results anywhere
+**/*.coverage
+**/*.coveragexml
+
+# Test results anywhere
+**/TestResults/
+**/*.trx
+
+# Visual Studio Code anywhere
+**/.vscode/
+
+# Others anywhere
+**/*.log
+**/*.vspscc
+**/*.vssscc
+**/*.dbmdl
+**/*.bak
+**/*.backup
+**/*.cache
+**/*.pdb
+**/*.mdb
+**/*.pidb
+**/*.svclog
+**/*.userprefs
+
