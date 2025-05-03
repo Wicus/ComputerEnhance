@@ -15,9 +15,8 @@ public class JsonData
 
 public class HaversineGenerator
 {
-    public static List<Pair> GetPairs(int numberOfPairs, int seed)
+    public static IEnumerable<Pair> GetPairsEnumerator(int numberOfPairs, int seed)
     {
-        var pairs = new List<Pair>();
         var random = new Random(seed);
         var maxAllowedX = 180;
         var maxAllowedY = 90;
@@ -36,26 +35,12 @@ public class HaversineGenerator
                 var y0 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
                 var y1 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
 
-                pairs.Add(new Pair { x0 = x0, x1 = x1, y0 = y0, y1 = y1 });
+                yield return new Pair { x0 = x0, x1 = x1, y0 = y0, y1 = y1 };
             }
         }
-
-        return pairs;
     }
 
-    public static double GetSum(List<Pair> pairs)
-    {
-        var sum = 0.0;
-        foreach (var pair in pairs)
-        {
-            sum += ReferenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1, 6372.8);
-        }
-
-        sum /= pairs.Count;
-        return sum;
-    }
-
-    private static double ReferenceHaversine(double x0, double y0, double x1, double y1, double earthRadius)
+    public static double ReferenceHaversine(double x0, double y0, double x1, double y1, double earthRadius)
     {
         var lat1 = y0;
         var lat2 = y1;
@@ -99,11 +84,11 @@ public class HaversineGenerator
 
     private static double RandomDegree(Random random, double center, double radius, double maxAllowed)
     {
-        var minVal = Math.Max(center - radius, -maxAllowed);
-        var maxVal = Math.Min(center + radius, maxAllowed);
+        var minValue = Math.Max(center - radius, -maxAllowed);
+        var maxValue = Math.Min(center + radius, maxAllowed);
 
-        var range = maxVal - minVal;
-        var result = minVal + random.NextDouble() * range;
-        return result;
+        var range = maxValue - minValue;
+        var randomDegreeInRange = minValue + random.NextDouble() * range;
+        return randomDegreeInRange;
     }
 }
