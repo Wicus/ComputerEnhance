@@ -1,4 +1,4 @@
-namespace HaversineInputJson;
+namespace Haversine.Generator;
 
 public class Pair
 {
@@ -13,20 +13,20 @@ public class JsonData
     public List<Pair> pairs = [];
 }
 
-public class HaversineGenerator
+public class Generator
 {
     public static IEnumerable<Pair> GetPairsEnumerator(int numberOfPairs, int seed)
     {
         var random = new Random(seed);
-        var maxAllowedX = 180;
-        var maxAllowedY = 90;
+        var maxAllowedX = 180.0;
+        var maxAllowedY = 90.0;
+        var xRadius = 180.0 / 64;
+        var yRadius = 90.0 / 64;
 
         for (var i = 0; i < numberOfPairs; i += 64)
         {
             var xCenter = Math.Clamp(GetRandomX(random), -maxAllowedX, maxAllowedX);
             var yCenter = Math.Clamp(GetRandomY(random), -maxAllowedY, maxAllowedY);
-            var xRadius = Math.Clamp(GetRandomX(random), 0, maxAllowedX);
-            var yRadius = Math.Clamp(GetRandomY(random), 0, maxAllowedY);
 
             for (var j = 0; j < 64 && i + j < numberOfPairs; j++)
             {

@@ -1,4 +1,4 @@
-namespace HaversineInputJson;
+namespace Haversine.App;
 
 public class ArgsParser
 {
