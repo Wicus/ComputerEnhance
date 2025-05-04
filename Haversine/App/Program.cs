@@ -1,37 +1,33 @@
-﻿using Haversine.App;
-using Haversine.Generator;
+﻿using Haversine.Generator;
 
-var parsedArgs = new ArgsParser(args);
-using var writer = new StreamWriter("data.json");
+var (pairs, seed) = ParseArgs(args);
 
-writer.WriteLine('{');
-writer.WriteLine("  \"pairs\": [");
+Generator.WriteJson(pairs, seed);
 
-var pairs = Generator.GetPairsEnumerator(parsedArgs.NumberOfPairs, parsedArgs.Seed);
-var pairsCount = 0;
-var sum = 0.0;
-var isFirst = true;
-foreach (var pair in pairs)
+// Private
+
+static (int pairs, int seed) ParseArgs(string[] args)
 {
-    if (!isFirst)
+    if (args[0] == null || args[1] == null)
     {
-        writer.WriteLine(',');
+        throw new ArgumentException("Missing arguments");
     }
 
-    writer.WriteLine("    {");
-    writer.WriteLine($"      \"x0\": {pair.x0},");
-    writer.WriteLine($"      \"x1\": {pair.x1},");
-    writer.WriteLine($"      \"y0\": {pair.y0},");
-    writer.WriteLine($"      \"y1\": {pair.y1}");
-    writer.Write("    }");
+    var pairs = int.Parse(args[0]);
+    if (pairs <= 0)
+    {
+        throw new ArgumentException("Invalid number of pairs");
+    }
+    if (pairs > 10_000_000)
+    {
+        throw new ArgumentException("Number of pairs too large");
+    }
 
-    sum += Generator.ReferenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1, 6372.8);
-    pairsCount++;
-    isFirst = false;
+    var seed = int.Parse(args[1]);
+    if (seed < 0)
+    {
+        throw new ArgumentException("Invalid seed");
+    }
+
+    return (pairs, seed);
 }
-
-writer.WriteLine("  ]");
-writer.WriteLine('}');
-
-Console.WriteLine("Pair Count: {0}", pairsCount);
-Console.WriteLine("Expected Sum: {0}", sum / pairsCount);

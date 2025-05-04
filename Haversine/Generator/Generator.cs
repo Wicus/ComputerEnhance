@@ -15,13 +15,50 @@ public class JsonData
 
 public class Generator
 {
+    public static void WriteJson(int pairs, int seed)
+    {
+        using var writer = new StreamWriter("data.json");
+
+        writer.WriteLine('{');
+        writer.WriteLine("  \"pairs\": [");
+
+        var pairsEnumerator = GetPairsEnumerator(pairs, seed);
+        var pairsCount = 0;
+        var sum = 0.0;
+        var isFirst = true;
+        foreach (var pair in pairsEnumerator)
+        {
+            if (!isFirst)
+            {
+                writer.WriteLine(',');
+            }
+
+            writer.WriteLine("    {");
+            writer.WriteLine($"      \"x0\": {pair.x0},");
+            writer.WriteLine($"      \"x1\": {pair.x1},");
+            writer.WriteLine($"      \"y0\": {pair.y0},");
+            writer.WriteLine($"      \"y1\": {pair.y1}");
+            writer.Write("    }");
+
+            sum += ReferenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1, 6372.8);
+            pairsCount++;
+            isFirst = false;
+        }
+
+        writer.WriteLine("  ]");
+        writer.WriteLine('}');
+
+        Console.WriteLine("Pair Count: {0}", pairsCount);
+        Console.WriteLine("Expected Sum: {0}", sum / pairsCount);
+    }
+
     public static IEnumerable<Pair> GetPairsEnumerator(int numberOfPairs, int seed)
     {
         var random = new Random(seed);
         var maxAllowedX = 180.0;
         var maxAllowedY = 90.0;
-        var xRadius = 180.0 / 64;
-        var yRadius = 90.0 / 64;
+        var xRadius = maxAllowedX / 64;
+        var yRadius = maxAllowedY / 64;
 
         for (var i = 0; i < numberOfPairs; i += 64)
         {
@@ -31,11 +68,17 @@ public class Generator
             for (var j = 0; j < 64 && i + j < numberOfPairs; j++)
             {
                 var x0 = RandomDegree(random, xCenter, xRadius, maxAllowedX);
-                var x1 = RandomDegree(random, xCenter, xRadius, maxAllowedX);
+                var x1 = RandomDegree(random, x0 + xCenter, xRadius, maxAllowedX);
                 var y0 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
-                var y1 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
+                var y1 = RandomDegree(random, y0 + yCenter, yRadius, maxAllowedY);
 
-                yield return new Pair { x0 = x0, x1 = x1, y0 = y0, y1 = y1 };
+                yield return new Pair
+                {
+                    x0 = x0,
+                    x1 = x1,
+                    y0 = y0,
+                    y1 = y1,
+                };
             }
         }
     }
