@@ -15,9 +15,9 @@ public class JsonData
 
 public class Generator
 {
-    public static void WriteJson(int pairs, int seed)
+    public static void WriteJson(string dataFile, int pairs, int seed)
     {
-        using var writer = new StreamWriter("data.json");
+        using var writer = new StreamWriter(dataFile);
 
         writer.WriteLine('{');
         writer.WriteLine("  \"pairs\": [");

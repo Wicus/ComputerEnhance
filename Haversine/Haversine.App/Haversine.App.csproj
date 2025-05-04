@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Generator\Generator.csproj" />
-    <ProjectReference Include="..\Parser\Parser.csproj" />
+    <ProjectReference Include="..\Haversine.Generator\Haversine.Generator.csproj" />
+    <ProjectReference Include="..\Haversine.Parser\Haversine.Parser.csproj" />
   </ItemGroup>
 
 </Project>
