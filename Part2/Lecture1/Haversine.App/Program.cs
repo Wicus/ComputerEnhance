@@ -1,74 +1,47 @@
-﻿using Haversine.Generator;
+﻿using System.CommandLine;
+using System.CommandLine.Invocation;
+using Haversine.Generator;
 using Haversine.Parser;
 
-var parsedArgs = ParseArgs(args);
 var dataFile = "../output/data.json";
 
-switch (parsedArgs.Type)
-{
-    case Type.Generate:
-        Generator.WriteJson(dataFile, parsedArgs.Pairs!.Value, parsedArgs.Seed!.Value);
-        break;
-    case Type.Parse:
-        Parser.Parse(dataFile);
-        break;
-    default:
-        throw new ArgumentException("Invalid type");
-}
+var rootCommand = new RootCommand("Haversine calculator - generates or parses coordinate data");
 
-static Args ParseArgs(string[] args)
+var parseCommand = new Command("parse", "Parse and calculate haversine distances from data file");
+var generateCommand = new Command("generate", "Generate haversine coordinate pairs");
+var pairsOption = new Option<int>("--pairs", "Number of coordinate pairs to generate") { IsRequired = true };
+var seedOption = new Option<int>("--seed", "Random seed for generation") { IsRequired = true };
+
+pairsOption.AddValidator(result =>
 {
-    if (!Enum.TryParse<Type>(args[0], out var type))
+    var value = result.GetValueOrDefault<int>();
+    if (value <= 0)
+        return "Number of pairs must be greater than 0";
+    else if (value > 10_000_000)
+        return "Number of pairs cannot exceed 10,000,000";
+    return null;
+});
+
+seedOption.AddValidator(result =>
+{
+    var value = result.GetValueOrDefault<int>();
+    if (value < 0)
+        return "Seed must be non-negative";
+    return null;
+});
+
+generateCommand.AddOption(pairsOption);
+generateCommand.AddOption(seedOption);
+generateCommand.Handler = CommandHandler.Create<int, int>(
+    (pairs, seed) =>
     {
-        throw new ArgumentException("Invalid type");
+        Generator.WriteJson(dataFile, pairs, seed);
     }
+);
 
-    if (type == Type.Generate)
-    {
-        if (!int.TryParse(args[1], out var pairs))
-        {
-            throw new ArgumentException("Invalid pairs");
-        }
-        if (!int.TryParse(args[2], out var seed))
-        {
-            throw new ArgumentException("Invalid seed");
-        }
-        if (pairs <= 0)
-        {
-            throw new ArgumentException("Invalid number of pairs");
-        }
-        if (pairs > 10_000_000)
-        {
-            throw new ArgumentException("Number of pairs too large");
-        }
-        if (seed < 0)
-        {
-            throw new ArgumentException("Invalid seed");
-        }
-        return new Args
-        {
-            Type = type,
-            Pairs = pairs,
-            Seed = seed,
-        };
-    }
+parseCommand.Handler = CommandHandler.Create(() => Parser.Parse(dataFile));
 
-    return new Args
-    {
-        Type = type,
-    };
-}
+rootCommand.AddCommand(generateCommand);
+rootCommand.AddCommand(parseCommand);
 
-enum Type
-{
-    Unknown,
-    Generate,
-    Parse,
-}
-
-class Args
-{
-    public Type Type { get; set; } = Type.Unknown;
-    public int? Pairs { get; set; }
-    public int? Seed { get; set; }
-}
+return await rootCommand.InvokeAsync(args);
