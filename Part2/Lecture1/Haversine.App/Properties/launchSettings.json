@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Generate": {
+      "commandName": "Project",
+      "commandLineArgs": "generate --pairs 1000000 --seed 1337"
+    },
+    "Parse": {
+      "commandName": "Project",
+      "commandLineArgs": "parse"
+    }
+  }
+}

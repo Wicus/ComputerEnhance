@@ -15,15 +15,21 @@ public class JsonData
 
 public class Generator
 {
-    public static void WriteJson(string dataFile, int pairs, int seed)
+    public static void WriteJson(string dataFile, long pairs, int seed)
     {
+        var directory = Path.GetDirectoryName(dataFile);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
         using var writer = new StreamWriter(dataFile);
 
         writer.WriteLine('{');
         writer.WriteLine("  \"pairs\": [");
 
         var pairsEnumerator = GetPairsEnumerator(pairs, seed);
-        var pairsCount = 0;
+        long pairsCount = 0;
         var sum = 0.0;
         var isFirst = true;
         foreach (var pair in pairsEnumerator)
@@ -52,7 +58,7 @@ public class Generator
         Console.WriteLine("Expected Sum: {0}", sum / pairsCount);
     }
 
-    public static IEnumerable<Pair> GetPairsEnumerator(int numberOfPairs, int seed)
+    public static IEnumerable<Pair> GetPairsEnumerator(long numberOfPairs, int seed)
     {
         var random = new Random(seed);
         var maxAllowedX = 180.0;
@@ -60,7 +66,7 @@ public class Generator
         var xRadius = maxAllowedX / 64;
         var yRadius = maxAllowedY / 64;
 
-        for (var i = 0; i < numberOfPairs; i += 64)
+        for (long i = 0; i < numberOfPairs; i += 64)
         {
             var xCenter = Math.Clamp(GetRandomX(random), -maxAllowedX, maxAllowedX);
             var yCenter = Math.Clamp(GetRandomY(random), -maxAllowedY, maxAllowedY);
