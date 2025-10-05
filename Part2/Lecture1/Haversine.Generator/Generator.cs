@@ -65,44 +65,21 @@ public class Generator
         var maxAllowedY = 90.0;
         var numberOfClusters = 64;
 
-        // Create clusters with random centers, weights, and radii
-        var clusterCenters = new (double x, double y, double radiusScale)[numberOfClusters];
-        var clusterWeights = new double[numberOfClusters];
-        var totalWeight = 0.0;
-
+        // Get random cluster centers for the numberOfClusters there are. They are as many clusters as there are pairs devided by 64.
+        var clusterCenters = new (double x, double y)[numberOfClusters];
         for (long i = 0; i < numberOfClusters; i++)
         {
-            clusterCenters[i] = (
-                GetRandomX(random),
-                GetRandomY(random),
-                random.NextDouble() * 10 // 0x to 10x radius variation
-            );
-            // Random weight: some clusters more likely than others
-            clusterWeights[i] = random.NextDouble();
-            totalWeight += clusterWeights[i];
+            clusterCenters[i] = (GetRandomX(random), GetRandomY(random));
         }
 
         for (long i = 0; i < numberOfPairs; i++)
         {
-            // Weighted random cluster selection
-            var randomValue = random.NextDouble() * totalWeight;
-            var cumulativeWeight = 0.0;
-            var clusterIndex = 0;
-
-            for (int j = 0; j < numberOfClusters; j++)
-            {
-                cumulativeWeight += clusterWeights[j];
-                if (randomValue <= cumulativeWeight)
-                {
-                    clusterIndex = j;
-                    break;
-                }
-            }
-
-            var (xCenter, yCenter, radiusScale) = clusterCenters[clusterIndex];
-
-            var xRadius = maxAllowedX / 64 * radiusScale;
-            var yRadius = maxAllowedY / 64 * radiusScale;
+            // Get a random cluster index to put this pair in.
+            var clusterIndex = random.Next(numberOfClusters);
+            var (xCenter, yCenter) = clusterCenters[clusterIndex];
+            
+            var xRadius = maxAllowedX / 64;
+            var yRadius = maxAllowedY / 64;
 
             var x0 = RandomDegree(random, xCenter, xRadius, maxAllowedX);
             var x1 = RandomDegree(random, x0 + xCenter, xRadius, maxAllowedX);
