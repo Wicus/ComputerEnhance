@@ -63,29 +63,53 @@ public class Generator
         var random = new Random(seed);
         var maxAllowedX = 180.0;
         var maxAllowedY = 90.0;
-        var xRadius = maxAllowedX / 64;
-        var yRadius = maxAllowedY / 64;
+        var numberOfClusters = 64;
 
-        for (long i = 0; i < numberOfPairs; i += 64)
+        // Create clusters with random centers, weights, and radii
+        var clusterCenters = new (double x, double y, double radiusScale)[numberOfClusters];
+        var clusterWeights = new double[numberOfClusters];
+        var totalWeight = 0.0;
+
+        for (long i = 0; i < numberOfClusters; i++)
         {
-            var xCenter = Math.Clamp(GetRandomX(random), -maxAllowedX, maxAllowedX);
-            var yCenter = Math.Clamp(GetRandomY(random), -maxAllowedY, maxAllowedY);
+            clusterCenters[i] = (
+                GetRandomX(random),
+                GetRandomY(random),
+                random.NextDouble() * 10 // 0x to 10x radius variation
+            );
+            // Random weight: some clusters more likely than others
+            clusterWeights[i] = random.NextDouble();
+            totalWeight += clusterWeights[i];
+        }
 
-            for (var j = 0; j < 64 && i + j < numberOfPairs; j++)
+        for (long i = 0; i < numberOfPairs; i++)
+        {
+            // Weighted random cluster selection
+            var randomValue = random.NextDouble() * totalWeight;
+            var cumulativeWeight = 0.0;
+            var clusterIndex = 0;
+
+            for (int j = 0; j < numberOfClusters; j++)
             {
-                var x0 = RandomDegree(random, xCenter, xRadius, maxAllowedX);
-                var x1 = RandomDegree(random, x0 + xCenter, xRadius, maxAllowedX);
-                var y0 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
-                var y1 = RandomDegree(random, y0 + yCenter, yRadius, maxAllowedY);
-
-                yield return new Pair
+                cumulativeWeight += clusterWeights[j];
+                if (randomValue <= cumulativeWeight)
                 {
-                    x0 = x0,
-                    x1 = x1,
-                    y0 = y0,
-                    y1 = y1,
-                };
+                    clusterIndex = j;
+                    break;
+                }
             }
+
+            var (xCenter, yCenter, radiusScale) = clusterCenters[clusterIndex];
+
+            var xRadius = maxAllowedX / 64 * radiusScale;
+            var yRadius = maxAllowedY / 64 * radiusScale;
+
+            var x0 = RandomDegree(random, xCenter, xRadius, maxAllowedX);
+            var x1 = RandomDegree(random, x0 + xCenter, xRadius, maxAllowedX);
+            var y0 = RandomDegree(random, yCenter, yRadius, maxAllowedY);
+            var y1 = RandomDegree(random, y0 + yCenter, yRadius, maxAllowedY);
+
+            yield return new Pair { x0 = x0, x1 = x1, y0 = y0, y1 = y1 };
         }
     }
 
