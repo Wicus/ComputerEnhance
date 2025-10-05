@@ -2,7 +2,7 @@
 
 internal static class Program
 {
-    private const long MaxPairs = 10_000_000_000;
+    private const long MaxPairs = 1_000_000;
 
     private static int Main(string[] args)
     {
@@ -13,7 +13,8 @@ internal static class Program
         }
 
         var command = args[0];
-        var filePath = Path.Combine(AppContext.BaseDirectory, "output", "haversine.json");
+        var projectDir = Directory.GetCurrentDirectory();
+        var filePath = Path.Combine(projectDir, "output", "haversine.json");
 
         return command switch
         {
@@ -35,25 +36,24 @@ internal static class Program
         long pairs = 0;
         int seed = 0;
 
-        for (int i = 1; i < args.Length - 1; i++)
+        for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--pairs")
+            var arg = args[i];
+            if (arg == "--pairs")
             {
-                if (!long.TryParse(args[i + 1], out pairs))
+                if (!long.TryParse(args[++i], out pairs))
                 {
-                    Console.WriteLine($"Error: Invalid pairs value '{args[i + 1]}'");
+                    Console.WriteLine($"Error: Invalid pairs value '{args[i]}'");
                     return 1;
                 }
-                i++;
             }
-            else if (args[i] == "--seed")
+            else if (arg == "--seed")
             {
-                if (!int.TryParse(args[i + 1], out seed))
+                if (!int.TryParse(args[++i], out seed))
                 {
-                    Console.WriteLine($"Error: Invalid seed value '{args[i + 1]}'");
+                    Console.WriteLine($"Error: Invalid seed value '{args[i]}'");
                     return 1;
                 }
-                i++;
             }
         }
 
@@ -113,7 +113,8 @@ internal static class Program
         {
             case "parse":
             {
-                var filePath = Path.Combine(AppContext.BaseDirectory, "output", "haversine.json");
+                var projectDir = Directory.GetCurrentDirectory();
+                var filePath = Path.Combine(projectDir, "output", "haversine.json");
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"Error: File not found: {filePath}");
@@ -121,17 +122,18 @@ internal static class Program
                     return 1;
                 }
 
-                Benchmark.Run("Parse Haversine Data", () => Parser.Parser.Parse(filePath));
+                // Benchmark.Run("Parse Haversine Data", () => Parser.Parser.Parse(filePath));
                 return 0;
             }
 
             case "generate":
             {
-                var filePath = Path.Combine(AppContext.BaseDirectory, "output", "haversine.json");
+                var projectDir = Directory.GetCurrentDirectory();
+                var filePath = Path.Combine(projectDir, "output", "haversine.json");
                 const long pairs = 5_000_000_000;
                 const int seed = 42;
 
-                Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
+                // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
                 return 0;
             }
 
@@ -146,12 +148,17 @@ internal static class Program
         Console.WriteLine("Haversine calculator - generates or parses coordinate data");
         Console.WriteLine();
         Console.WriteLine("Usage:");
-        Console.WriteLine("  haversine generate --pairs <count> --seed <value>");
-        Console.WriteLine("  haversine parse");
-        Console.WriteLine("  haversine benchmark <operation>");
+        Console.WriteLine("  dotnet run -- generate --pairs <count> --seed <value>");
+        Console.WriteLine("  dotnet run -- parse");
+        Console.WriteLine("  dotnet run -- benchmark <operation>");
         Console.WriteLine();
-        Console.WriteLine("Benchmark operations:");
-        Console.WriteLine("  parse     - Benchmark parsing performance");
-        Console.WriteLine("  generate  - Benchmark generation performance");
+        Console.WriteLine("Commands:");
+        Console.WriteLine("  generate  - Generate coordinate pairs");
+        Console.WriteLine("  parse     - Parse and calculate distances from generated file");
+        Console.WriteLine("  benchmark - Run performance benchmarks (currently disabled)");
+        Console.WriteLine();
+        Console.WriteLine("Examples:");
+        Console.WriteLine("  dotnet run -- generate --pairs 1000000 --seed 1337");
+        Console.WriteLine("  dotnet run -- parse");
     }
 }
