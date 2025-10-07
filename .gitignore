@@ -78,3 +78,6 @@ computer_enhance
 Haversine/App/data.json
 Haversine/output/data.json
 .claude/settings.local.json
+Part2/Lecture1/Haversine.App/output/haversine.json
+Part2/Lecture1/.claude/settings.local.json
+Part2/Lecture1/output/haversine.json

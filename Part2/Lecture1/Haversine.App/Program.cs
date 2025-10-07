@@ -2,7 +2,7 @@
 
 internal static class Program
 {
-    private const long MaxPairs = 1_000_000;
+    private const long MaxPairs = 100_000_000;
 
     private static int Main(string[] args)
     {
@@ -118,11 +118,11 @@ internal static class Program
                 if (!File.Exists(filePath))
                 {
                     Console.WriteLine($"Error: File not found: {filePath}");
-                    Console.WriteLine("Generate a file first with: haversine generate --pairs 5_000_000_000 --seed 42");
+                    Console.WriteLine("Generate a file first with: haversine generate --pairs 1000000 --seed 42");
                     return 1;
                 }
 
-                // Benchmark.Run("Parse Haversine Data", () => Parser.Parser.Parse(filePath));
+                Parser.Parser.Benchmark(filePath);
                 return 0;
             }
 
@@ -155,7 +155,7 @@ internal static class Program
         Console.WriteLine("Commands:");
         Console.WriteLine("  generate  - Generate coordinate pairs");
         Console.WriteLine("  parse     - Parse and calculate distances from generated file");
-        Console.WriteLine("  benchmark - Run performance benchmarks (currently disabled)");
+        Console.WriteLine("  benchmark - Run performance benchmarks (parse: IEnumerable vs List)");
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  dotnet run -- generate --pairs 1000000 --seed 1337");
