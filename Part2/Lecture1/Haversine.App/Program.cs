@@ -122,7 +122,7 @@ internal static class Program
                     return 1;
                 }
 
-                Parser.Parser.Benchmark(filePath);
+                // Parser.Parser.Benchmark(filePath);
                 return 0;
             }
 
