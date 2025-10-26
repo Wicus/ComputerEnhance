@@ -1,14 +1,19 @@
 ﻿using HaversineProfiler = Haversine.Profiler.Profiler;
 using HaversineParser = Haversine.Parser.Parser;
+using Microsoft.Extensions.DependencyInjection;
+using Haversine.Profiler;
 
 namespace Haversine.App;
 
 internal static class Program
 {
     private const long MaxPairs = 100_000_000;
+    private static ServiceProvider? _serviceProvider;
 
     private static int Main(string[] args)
     {
+        ConfigureServices();
+
         if (args.Length == 0)
         {
             PrintUsage();
@@ -26,6 +31,14 @@ internal static class Program
             "benchmark" => HandleBenchmark(args),
             _ => InvalidCommand(command)
         };
+    }
+
+    private static void ConfigureServices()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IProfiler, HaversineProfiler>();
+        services.AddTransient<HaversineParser>();
+        _serviceProvider = services.BuildServiceProvider();
     }
 
     private static int HandleGenerate(string[] args, string filePath)
@@ -90,8 +103,7 @@ internal static class Program
             return 1;
         }
 
-        var profiler = new HaversineProfiler();
-        var parser = new HaversineParser(profiler);
+        var parser = _serviceProvider!.GetRequiredService<HaversineParser>();
         parser.Parse(filePath);
         parser.PrintResults(filePath);
         return 0;

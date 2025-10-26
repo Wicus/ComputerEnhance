@@ -17,17 +17,57 @@ public static class CpuTimer
 
     public static ulong EstimateCpuFrequency()
     {
-        var sw = Stopwatch.StartNew();
-        var start = ReadTSC();
+        const double targetSeconds = 1.00;
+        var stopwatchFrequency = Stopwatch.Frequency;
+        var sampleTicks = (long)(targetSeconds * stopwatchFrequency);
 
-        Thread.Sleep(100);
+        var originalPriority = Thread.CurrentThread.Priority;
+        Thread.CurrentThread.Priority = ThreadPriority.Highest;
 
-        var end = ReadTSC();
-        sw.Stop();
+        try
+        {
+            var start = Sample();
+            var spin = new SpinWait();
 
-        var elapsed = end - start;
-        var seconds = sw.Elapsed.TotalSeconds;
+            while (Stopwatch.GetTimestamp() - start.StopwatchTicks < sampleTicks)
+            {
+                spin.SpinOnce();
+            }
 
-        return (ulong)(elapsed / seconds);
+            var end = Sample();
+
+            var elapsedTsc = end.Tsc - start.Tsc;
+            var elapsedStopwatchTicks = end.StopwatchTicks - start.StopwatchTicks;
+
+            if (elapsedStopwatchTicks <= 0)
+            {
+                return 0;
+            }
+
+            var frequency = (double)elapsedTsc * stopwatchFrequency / elapsedStopwatchTicks;
+            return (ulong)Math.Round(frequency);
+        }
+        finally
+        {
+            Thread.CurrentThread.Priority = originalPriority;
+        }
+    }
+
+    private static (ulong Tsc, long StopwatchTicks) Sample()
+    {
+        var maxSkew = Math.Max(Stopwatch.Frequency / 10_000, 1); // ~100 µs guard
+
+        while (true)
+        {
+            var before = Stopwatch.GetTimestamp();
+            var tsc = ReadTSC();
+            var after = Stopwatch.GetTimestamp();
+
+            if (after - before <= maxSkew)
+            {
+                var midpoint = before + ((after - before) >> 1);
+                return (tsc, midpoint);
+            }
+        }
     }
 }

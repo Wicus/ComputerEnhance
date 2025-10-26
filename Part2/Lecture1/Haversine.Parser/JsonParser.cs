@@ -1,14 +1,18 @@
+using Haversine.Profiler;
+
 namespace Haversine.Parser;
 
 public class JsonParser
 {
     private readonly JsonTokenizer _tokenizer;
     private JsonToken _currentToken;
+    private readonly IProfiler _profiler;
 
-    public JsonParser(StreamReader reader)
+    public JsonParser(IProfiler profiler, StreamReader reader)
     {
         _tokenizer = new JsonTokenizer(reader);
         _currentToken = _tokenizer.NextToken();
+        _profiler = profiler;
     }
 
     public JsonValue Parse()
@@ -38,6 +42,7 @@ public class JsonParser
 
     private JsonValue ParseObject()
     {
+        using var parseObjectZone = _profiler.BeginZone("ParseObject");
         Expect(JsonTokenType.LeftBrace);
         var dict = new Dictionary<string, JsonValue>();
 

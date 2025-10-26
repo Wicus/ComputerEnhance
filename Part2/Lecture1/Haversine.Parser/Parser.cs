@@ -23,7 +23,7 @@ public class Parser(IProfiler profiler)
         using (var reader = new StreamReader(fileStream))
         {
             using var jsonParseZone = profiler.BeginZone("JsonParse");
-            var parser = new JsonParser(reader);
+            var parser = new JsonParser(profiler, reader);
             json = parser.Parse();
         }
 
