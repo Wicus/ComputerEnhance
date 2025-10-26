@@ -42,8 +42,6 @@ public static class Parser
             {
                 case '{':
                     SkipWhiteSpace(reader);
-
-                    // Reset coordinates for new pair
                     coords.X0 = coords.Y0 = coords.X1 = coords.Y1 = double.NaN;
                     break;
 
@@ -71,12 +69,10 @@ public static class Parser
                             {
                                 break;
                             }
-
                             if (propLength >= propertyBuffer.Length)
                             {
                                 throw new InvalidDataException("Property name exceeds parser buffer.");
                             }
-
                             propertyBuffer[propLength++] = c;
                         }
 
@@ -125,11 +121,10 @@ public static class Parser
             }
         }
 
-        var mean = count > 0 ? sum / count : 0.0;
+        var haversineSum = count > 0 ? sum / count : 0.0;
 
         Console.WriteLine($"Pair Count: {count}");
-        Console.WriteLine($"Haversine Sum: {sum}");
-        Console.WriteLine($"Mean Distance: {mean}");
+        Console.WriteLine($"Haversine Sum: {haversineSum}");
     }
 
     private static void Expect(StreamReader reader, char expected)
