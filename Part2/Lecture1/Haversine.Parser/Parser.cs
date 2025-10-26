@@ -22,6 +22,7 @@ public class Parser(IProfiler profiler)
         using (var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
         using (var reader = new StreamReader(fileStream))
         {
+            using var jsonParseZone = profiler.BeginZone("JsonParse");
             var parser = new JsonParser(reader);
             json = parser.Parse();
         }
@@ -36,27 +37,36 @@ public class Parser(IProfiler profiler)
             if (obj.TryGetValue("pairs", out var pairsValue) && pairsValue.Type == JsonValueType.Array)
             {
                 var pairs = pairsValue.AsArray();
-                foreach (var pair in pairs)
+                using (var loopZone = profiler.BeginZone("CoordinateLoop"))
                 {
-
-                    if (pair.Type != JsonValueType.Object)
+                    foreach (var pair in pairs)
                     {
-                        continue;
-                    }
 
-                    var pairObj = pair.AsObject();
-                    if (pairObj.TryGetValue("x0", out var x0Val) && x0Val.Type == JsonValueType.Number &&
-                        pairObj.TryGetValue("y0", out var y0Val) && y0Val.Type == JsonValueType.Number &&
-                        pairObj.TryGetValue("x1", out var x1Val) && x1Val.Type == JsonValueType.Number &&
-                        pairObj.TryGetValue("y1", out var y1Val) && y1Val.Type == JsonValueType.Number)
-                    {
-                        var x0 = x0Val.AsNumber();
-                        var y0 = y0Val.AsNumber();
-                        var x1 = x1Val.AsNumber();
-                        var y1 = y1Val.AsNumber();
+                        if (pair.Type != JsonValueType.Object)
+                        {
+                            continue;
+                        }
 
-                        sum += ComputeHaversine(x0, y0, x1, y1);
-                        count++;
+                        var pairObj = pair.AsObject();
+                        if (pairObj.TryGetValue("x0", out var x0Val) && x0Val.Type == JsonValueType.Number &&
+                            pairObj.TryGetValue("y0", out var y0Val) && y0Val.Type == JsonValueType.Number &&
+                            pairObj.TryGetValue("x1", out var x1Val) && x1Val.Type == JsonValueType.Number &&
+                            pairObj.TryGetValue("y1", out var y1Val) && y1Val.Type == JsonValueType.Number)
+                        {
+                            var x0 = x0Val.AsNumber();
+                            var y0 = y0Val.AsNumber();
+                            var x1 = x1Val.AsNumber();
+                            var y1 = y1Val.AsNumber();
+
+                            double distance;
+                            using (var haversineZone = profiler.BeginZone("Haversine"))
+                            {
+                                distance = ComputeHaversine(x0, y0, x1, y1);
+                            }
+
+                            sum += distance;
+                            count++;
+                        }
                     }
                 }
             }
