@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Haversine.Rdtsc;
 
 namespace Haversine.Profiler;
 
@@ -12,7 +13,7 @@ public class Profiler : IProfiler
 {
     private readonly Dictionary<string, ProfileZone> _zones = [];
     private readonly Stopwatch _globalTimer = Stopwatch.StartNew();
-    private readonly ulong _cpuFrequency = EstimateCpuFrequency();
+    private readonly ulong _timerFrequency = CpuTimer.EstimateCpuFrequency();
 
     public IDisposable BeginZone(string name)
     {
@@ -31,7 +32,7 @@ public class Profiler : IProfiler
 
         Console.WriteLine("\n=== PERFORMANCE ANALYSIS ===\n");
         Console.WriteLine($"Total Time: {totalElapsed * 1000:F3} ms");
-        Console.WriteLine($"CPU Frequency: ~{_cpuFrequency / 1_000_000:F0} MHz");
+        Console.WriteLine($"CPU Frequency: ~{_timerFrequency / 1_000_000:F0} MHz");
         if (totalBytes > 0)
         {
             var megabytes = totalBytes / (1024.0 * 1024.0);
@@ -41,14 +42,14 @@ public class Profiler : IProfiler
         Console.WriteLine();
 
         var sortedZones = _zones.Values.OrderByDescending(z => z.ElapsedTicks).ToList();
-        var totalTicks = sortedZones.Sum(z => z.ElapsedTicks);
+        var totalTicks = sortedZones.Sum(z => (long)z.ElapsedTicks);
 
         Console.WriteLine($"{"Zone", -30} {"Time (ms)", 12} {"Percent", 8} {"Hit Count", 12} {"Avg (us)", 12}");
         Console.WriteLine(new string('-', 85));
 
         foreach (var zone in sortedZones)
         {
-            var ms = zone.ElapsedTicks / (double)Stopwatch.Frequency * 1000.0;
+            var ms = zone.ElapsedTicks / (double)_timerFrequency * 1000.0;
             var percent = totalTicks > 0 ? (zone.ElapsedTicks / (double)totalTicks * 100.0) : 0;
             var avgUs = zone.HitCount > 0 ? (ms * 1000.0 / zone.HitCount) : 0;
 
@@ -57,39 +58,24 @@ public class Profiler : IProfiler
 
         Console.WriteLine();
     }
-
-    private static ulong EstimateCpuFrequency()
-    {
-        // Estimate by running a timing test
-        var sw = Stopwatch.StartNew();
-        var startTicks = (ulong)sw.ElapsedTicks;
-        Thread.Sleep(100);
-        var endTicks = (ulong)sw.ElapsedTicks;
-        sw.Stop();
-
-        var elapsed = endTicks - startTicks;
-        var seconds = sw.Elapsed.TotalSeconds;
-
-        return (ulong)(elapsed / seconds);
-    }
 }
 
 public class ProfileZone(string name) : IDisposable
 {
     public string Name { get; } = name;
-    public long ElapsedTicks { get; private set; }
+    public ulong ElapsedTicks { get; private set; }
     public long HitCount { get; private set; }
 
-    private long _startTicks;
+    private ulong _startTicks;
 
     public void Begin()
     {
-        _startTicks = Stopwatch.GetTimestamp();
+        _startTicks = CpuTimer.ReadCpuTimer();
     }
 
     public void Dispose()
     {
-        var endTicks = Stopwatch.GetTimestamp();
+        var endTicks = CpuTimer.ReadCpuTimer();
         ElapsedTicks += endTicks - _startTicks;
         HitCount++;
     }
