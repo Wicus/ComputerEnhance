@@ -5,18 +5,14 @@ namespace Haversine.Profiler;
 public interface IProfiler
 {
     IDisposable BeginZone(string name);
+    void PrintResults(long totalBytes);
 }
 
 public class Profiler : IProfiler
 {
     private readonly Dictionary<string, ProfileZone> _zones = [];
     private readonly Stopwatch _globalTimer = Stopwatch.StartNew();
-    private readonly ulong _cpuFrequency;
-
-    public Profiler()
-    {
-        _cpuFrequency = EstimateCpuFrequency();
-    }
+    private readonly ulong _cpuFrequency = EstimateCpuFrequency();
 
     public IDisposable BeginZone(string name)
     {
@@ -47,7 +43,7 @@ public class Profiler : IProfiler
         var sortedZones = _zones.Values.OrderByDescending(z => z.ElapsedTicks).ToList();
         var totalTicks = sortedZones.Sum(z => z.ElapsedTicks);
 
-        Console.WriteLine($"{"Zone",-30} {"Time (ms)",12} {"Percent",8} {"Hit Count",12} {"Avg (us)",12}");
+        Console.WriteLine($"{"Zone", -30} {"Time (ms)", 12} {"Percent", 8} {"Hit Count", 12} {"Avg (us)", 12}");
         Console.WriteLine(new string('-', 85));
 
         foreach (var zone in sortedZones)
@@ -56,7 +52,7 @@ public class Profiler : IProfiler
             var percent = totalTicks > 0 ? (zone.ElapsedTicks / (double)totalTicks * 100.0) : 0;
             var avgUs = zone.HitCount > 0 ? (ms * 1000.0 / zone.HitCount) : 0;
 
-            Console.WriteLine($"{zone.Name,-30} {ms,12:F3} {percent,7:F2}% {zone.HitCount,12:N0} {avgUs,12:F3}");
+            Console.WriteLine($"{zone.Name, -30} {ms, 12:F3} {percent, 7:F2}% {zone.HitCount, 12:N0} {avgUs, 12:F3}");
         }
 
         Console.WriteLine();

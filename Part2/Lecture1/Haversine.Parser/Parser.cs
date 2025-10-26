@@ -1,4 +1,5 @@
 using System.Globalization;
+using Haversine.Profiler;
 
 namespace Haversine.Parser;
 
@@ -10,27 +11,22 @@ public struct CoordinatePair
     public double Y1;
 }
 
-public static class Parser
+public class Parser(IProfiler profiler)
 {
     private const double EarthRadiusKm = 6372.8;
     private const int MaxPropertyLength = 16;
     private const int MaxNumberLength = 64;
 
-    public static void Parse(string path)
+    public void Parse(string path)
     {
+        using var parseZone = profiler.BeginZone("Parse");
         using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
         using var reader = new StreamReader(fileStream);
 
         double sum = 0.0;
         long count = 0;
 
-        CoordinatePair coords = new()
-        {
-            X0 = double.NaN,
-            Y0 = double.NaN,
-            X1 = double.NaN,
-            Y1 = double.NaN
-        };
+        CoordinatePair coords = new() { X0 = double.NaN, Y0 = double.NaN, X1 = double.NaN, Y1 = double.NaN };
 
         Span<char> propertyBuffer = stackalloc char[MaxPropertyLength];
 
@@ -46,21 +42,25 @@ public static class Parser
                     break;
 
                 case '}':
-                    SkipWhiteSpace(reader);
-                    if (reader.Peek() == -1)
                     {
-                        break;
+                        using var processZone = profiler.BeginZone("ProcessPair");
+                        SkipWhiteSpace(reader);
+                        if (reader.Peek() == -1)
+                        {
+                            break;
+                        }
+                        if (!double.IsNaN(coords.X0) && !double.IsNaN(coords.Y0) && !double.IsNaN(coords.X1) && !double.IsNaN(coords.Y1))
+                        {
+                            sum += ComputeHaversine(coords.X0, coords.Y0, coords.X1, coords.Y1);
+                            count++;
+                        }
+                        SkipWhiteSpace(reader);
                     }
-                    if (!double.IsNaN(coords.X0) && !double.IsNaN(coords.Y0) && !double.IsNaN(coords.X1) && !double.IsNaN(coords.Y1))
-                    {
-                        sum += ComputeHaversine(coords.X0, coords.Y0, coords.X1, coords.Y1);
-                        count++;
-                    }
-                    SkipWhiteSpace(reader);
                     break;
 
                 case '"':
                     {
+                        using var readPropertyZone = profiler.BeginZone("ReadProperty");
                         int propLength = 0;
                         while ((next = reader.Read()) != -1)
                         {
@@ -127,7 +127,13 @@ public static class Parser
         Console.WriteLine($"Haversine Sum: {haversineSum}");
     }
 
-    private static void Expect(StreamReader reader, char expected)
+    public void PrintResults(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        profiler.PrintResults(fileInfo.Length);
+    }
+
+    private void Expect(StreamReader reader, char expected)
     {
         var next = reader.Read();
         if (next == -1 || (char)next != expected)
@@ -136,7 +142,7 @@ public static class Parser
         }
     }
 
-    private static void SkipWhiteSpace(StreamReader reader)
+    private void SkipWhiteSpace(StreamReader reader)
     {
         while (true)
         {
@@ -149,8 +155,9 @@ public static class Parser
         }
     }
 
-    private static double ReadDouble(StreamReader reader)
+    private double ReadDouble(StreamReader reader)
     {
+        using var readDoubleZone = profiler.BeginZone("ReadDouble");
         Span<char> numberBuffer = stackalloc char[MaxNumberLength];
         var length = 0;
 
@@ -178,12 +185,12 @@ public static class Parser
         return double.Parse(numberBuffer[..length], NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
     }
 
-    private static bool IsNumericChar(int ch)
+    private bool IsNumericChar(int ch)
     {
         return ch >= '0' && ch <= '9' || ch is '+' or '-' or '.' or 'e' or 'E';
     }
 
-    private static double ComputeHaversine(double x0, double y0, double x1, double y1)
+    private double ComputeHaversine(double x0, double y0, double x1, double y1)
     {
         var lat1 = y0;
         var lat2 = y1;
@@ -203,16 +210,15 @@ public static class Parser
         return result;
     }
 
-    private static double Square(double num)
+    private double Square(double num)
     {
         double result = num * num;
         return result;
     }
 
-    private static double RadiansFromDegrees(double degrees)
+    private double RadiansFromDegrees(double degrees)
     {
         double result = 0.01745329251994329577f * degrees;
         return result;
     }
 }
-

@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Haversine.Profiler\Haversine.Profiler.csproj" />
+  </ItemGroup>
+
 </Project>

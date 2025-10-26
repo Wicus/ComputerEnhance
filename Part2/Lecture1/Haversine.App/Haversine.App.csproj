@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Haversine.Generator\Haversine.Generator.csproj" />
     <ProjectReference Include="..\Haversine.Parser\Haversine.Parser.csproj" />
+    <ProjectReference Include="..\Haversine.Profiler\Haversine.Profiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>

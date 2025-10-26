@@ -1,4 +1,7 @@
-﻿namespace Haversine.App;
+﻿using HaversineProfiler = Haversine.Profiler.Profiler;
+using HaversineParser = Haversine.Parser.Parser;
+
+namespace Haversine.App;
 
 internal static class Program
 {
@@ -87,7 +90,10 @@ internal static class Program
             return 1;
         }
 
-        Parser.Parser.Parse(filePath);
+        var profiler = new HaversineProfiler();
+        var parser = new HaversineParser(profiler);
+        parser.Parse(filePath);
+        parser.PrintResults(filePath);
         return 0;
     }
 
@@ -128,11 +134,6 @@ internal static class Program
 
             case "generate":
             {
-                var projectDir = Directory.GetCurrentDirectory();
-                var filePath = Path.Combine(projectDir, "output", "haversine.json");
-                const long pairs = 5_000_000_000;
-                const int seed = 42;
-
                 // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
                 return 0;
             }
