@@ -1,4 +1,3 @@
-using System.Globalization;
 using Haversine.Profiler;
 
 namespace Haversine.Parser;
@@ -14,110 +13,52 @@ public struct CoordinatePair
 public class Parser(IProfiler profiler)
 {
     private const double EarthRadiusKm = 6372.8;
-    private const int MaxPropertyLength = 16;
-    private const int MaxNumberLength = 64;
 
     public void Parse(string path)
     {
         using var parseZone = profiler.BeginZone("Parse");
-        using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
-        using var reader = new StreamReader(fileStream);
+
+        JsonValue json;
+        using (var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
+        using (var reader = new StreamReader(fileStream))
+        {
+            var parser = new JsonParser(reader);
+            json = parser.Parse();
+        }
 
         double sum = 0.0;
         long count = 0;
 
-        CoordinatePair coords = new() { X0 = double.NaN, Y0 = double.NaN, X1 = double.NaN, Y1 = double.NaN };
-
-        Span<char> propertyBuffer = stackalloc char[MaxPropertyLength];
-
-        int next;
-        while ((next = reader.Read()) != -1)
+        if (json.Type == JsonValueType.Object)
         {
-            var ch = (char)next;
-            switch (ch)
+            using var processZone = profiler.BeginZone("Process");
+            var obj = json.AsObject();
+            if (obj.TryGetValue("pairs", out var pairsValue) && pairsValue.Type == JsonValueType.Array)
             {
-                case '{':
-                    SkipWhiteSpace(reader);
-                    coords.X0 = coords.Y0 = coords.X1 = coords.Y1 = double.NaN;
-                    break;
+                var pairs = pairsValue.AsArray();
+                foreach (var pair in pairs)
+                {
 
-                case '}':
+                    if (pair.Type != JsonValueType.Object)
                     {
-                        using var processZone = profiler.BeginZone("ProcessPair");
-                        SkipWhiteSpace(reader);
-                        if (reader.Peek() == -1)
-                        {
-                            break;
-                        }
-                        if (!double.IsNaN(coords.X0) && !double.IsNaN(coords.Y0) && !double.IsNaN(coords.X1) && !double.IsNaN(coords.Y1))
-                        {
-                            sum += ComputeHaversine(coords.X0, coords.Y0, coords.X1, coords.Y1);
-                            count++;
-                        }
-                        SkipWhiteSpace(reader);
+                        continue;
                     }
-                    break;
 
-                case '"':
+                    var pairObj = pair.AsObject();
+                    if (pairObj.TryGetValue("x0", out var x0Val) && x0Val.Type == JsonValueType.Number &&
+                        pairObj.TryGetValue("y0", out var y0Val) && y0Val.Type == JsonValueType.Number &&
+                        pairObj.TryGetValue("x1", out var x1Val) && x1Val.Type == JsonValueType.Number &&
+                        pairObj.TryGetValue("y1", out var y1Val) && y1Val.Type == JsonValueType.Number)
                     {
-                        using var readPropertyZone = profiler.BeginZone("ReadProperty");
-                        int propLength = 0;
-                        while ((next = reader.Read()) != -1)
-                        {
-                            var c = (char)next;
-                            if (c == '"')
-                            {
-                                break;
-                            }
-                            if (propLength >= propertyBuffer.Length)
-                            {
-                                throw new InvalidDataException("Property name exceeds parser buffer.");
-                            }
-                            propertyBuffer[propLength++] = c;
-                        }
+                        var x0 = x0Val.AsNumber();
+                        var y0 = y0Val.AsNumber();
+                        var x1 = x1Val.AsNumber();
+                        var y1 = y1Val.AsNumber();
 
-                        if (next == -1)
-                        {
-                            throw new InvalidDataException("Unexpected end of file while reading property name.");
-                        }
-
-                        ReadOnlySpan<char> propertyName = propertyBuffer[..propLength];
-
-                        SkipWhiteSpace(reader);
-                        Expect(reader, ':');
-                        SkipWhiteSpace(reader);
-
-                        if (propertyName.SequenceEqual("pairs"))
-                        {
-                            Expect(reader, '[');
-                            SkipWhiteSpace(reader);
-                        }
-                        else if (propertyName.SequenceEqual("x0"))
-                        {
-                            coords.X0 = ReadDouble(reader);
-                        }
-                        else if (propertyName.SequenceEqual("y0"))
-                        {
-                            coords.Y0 = ReadDouble(reader);
-                        }
-                        else if (propertyName.SequenceEqual("x1"))
-                        {
-                            coords.X1 = ReadDouble(reader);
-                        }
-                        else if (propertyName.SequenceEqual("y1"))
-                        {
-                            coords.Y1 = ReadDouble(reader);
-                        }
+                        sum += ComputeHaversine(x0, y0, x1, y1);
+                        count++;
                     }
-                    break;
-
-                case '[':
-                    SkipWhiteSpace(reader);
-                    break;
-
-                case ']':
-                    SkipWhiteSpace(reader);
-                    break;
+                }
             }
         }
 
@@ -131,63 +72,6 @@ public class Parser(IProfiler profiler)
     {
         var fileInfo = new FileInfo(path);
         profiler.PrintResults(fileInfo.Length);
-    }
-
-    private void Expect(StreamReader reader, char expected)
-    {
-        var next = reader.Read();
-        if (next == -1 || (char)next != expected)
-        {
-            throw new InvalidDataException($"Expected '{expected}' while parsing JSON.");
-        }
-    }
-
-    private void SkipWhiteSpace(StreamReader reader)
-    {
-        while (true)
-        {
-            var next = reader.Peek();
-            if (next == -1 || !char.IsWhiteSpace((char)next))
-            {
-                return;
-            }
-            reader.Read();
-        }
-    }
-
-    private double ReadDouble(StreamReader reader)
-    {
-        using var readDoubleZone = profiler.BeginZone("ReadDouble");
-        Span<char> numberBuffer = stackalloc char[MaxNumberLength];
-        var length = 0;
-
-        while (true)
-        {
-            var peek = reader.Peek();
-            if (peek == -1 || !IsNumericChar(peek))
-            {
-                break;
-            }
-
-            if (length >= numberBuffer.Length)
-            {
-                throw new InvalidDataException("Numeric literal exceeds parser buffer.");
-            }
-
-            numberBuffer[length++] = (char)reader.Read();
-        }
-
-        if (length == 0)
-        {
-            throw new InvalidDataException("Expected numeric literal.");
-        }
-
-        return double.Parse(numberBuffer[..length], NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
-    }
-
-    private bool IsNumericChar(int ch)
-    {
-        return ch >= '0' && ch <= '9' || ch is '+' or '-' or '.' or 'e' or 'E';
     }
 
     private double ComputeHaversine(double x0, double y0, double x1, double y1)
@@ -218,7 +102,7 @@ public class Parser(IProfiler profiler)
 
     private double RadiansFromDegrees(double degrees)
     {
-        double result = 0.01745329251994329577f * degrees;
+        double result = 0.01745329251994329577 * degrees;
         return result;
     }
 }

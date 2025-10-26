@@ -15,6 +15,8 @@ public class JsonData
 
 public class Generator
 {
+    private const double DegreesToRadians = Math.PI / 180.0;
+
     public static void WriteJson(string dataFile, long pairs, int seed)
     {
         var directory = Path.GetDirectoryName(dataFile);
@@ -118,8 +120,7 @@ public class Generator
 
     private static double RadiansFromDegrees(double degrees)
     {
-        double result = 0.01745329251994329577f * degrees;
-        return result;
+        return degrees * DegreesToRadians;
     }
 
     private static double GetRandomX(Random random)
