@@ -7,7 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="rdtsc.dll" CopyToOutputDirectory="PreserveNewest" />
+    <NativeLibrary Include="rdtsc.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </NativeLibrary>
+    <NativeLibrary Include="librdtsc.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </NativeLibrary>
+    <NativeLibrary Include="librdtsc.dylib">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </NativeLibrary>
   </ItemGroup>
 
 </Project>

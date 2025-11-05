@@ -6,7 +6,11 @@ namespace Haversine.Rdtsc;
 
 public static class CpuTimer
 {
-    [DllImport("rdtsc.dll", CallingConvention = CallingConvention.Cdecl)]
+    // Load logical name "rdtsc" so the runtime resolves:
+    //   Windows: rdtsc.dll
+    //   Linux:   librdtsc.so
+    //   macOS:   librdtsc.dylib (if provided)
+    [DllImport("rdtsc", CallingConvention = CallingConvention.Cdecl)]
     private static extern ulong ReadTSC();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
