@@ -5,8 +5,8 @@
 - `Haversine.App`: CLI (generate/parse/benchmark).
 - `Haversine.Parser`: JSON tokenizer/parser.
 - `Haversine.Generator`: data maker.
-- `Haversine.Profiler`: timing helpers → `Haversine.Rdtsc`.
-- `Haversine.Rdtsc`: P/Invoke to `rdtsc.dll` (Windows only).
+- `Haversine.Profiler`: timing helpers → `Haversine.CpuTimer`.
+- `Haversine.CpuTimer`: P/Invoke shim to `rdtsc` native library.
 - `output/`: generated data (e.g., `haversine.json`).
 
 ## Build, Test, and Development Commands
@@ -42,7 +42,7 @@
 ## Cross-Platform & Timing
 - .NET 9 runs on Windows/Linux/macOS.
 - OS switch done: `CpuTimer` P/Invoke loads logical `rdtsc` (dll/so/dylib).
-- Linux build: `bash Haversine.Rdtsc/build_rdtsc.sh` → `Haversine.Rdtsc/librdtsc.so` auto-copied to output.
-- Windows: keep `Haversine.Rdtsc/rdtsc.dll` (already copied).
+- Linux build: `bash Haversine.CpuTimer/build_rdtsc.sh` → `Haversine.CpuTimer/librdtsc.so` auto-copied to output.
+- Windows: keep `Haversine.CpuTimer/rdtsc.dll` (already copied).
 - macOS (optional): build `librdtsc.dylib`, drop next to project, it will copy.
 - Keep `output/` small and reproducible; don’t commit large blobs.

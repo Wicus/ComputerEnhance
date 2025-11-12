@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Haversine.Rdtsc;
+using Haversine.CpuTimer;
 
 namespace Haversine.Profiler;
 
@@ -13,7 +13,7 @@ public class Profiler : IProfiler
 {
     private readonly Dictionary<string, ProfileZone> _zones = [];
     private readonly Stopwatch _globalTimer = Stopwatch.StartNew();
-    private readonly ulong _timerFrequency = CpuTimer.EstimateCpuFrequency();
+    private readonly ulong _timerFrequency = CpuTimer.CpuTimer.EstimateFrequency();
 
     public IDisposable BeginZone(string name)
     {
@@ -70,12 +70,12 @@ public class ProfileZone(string name) : IDisposable
 
     public void Begin()
     {
-        _startTicks = CpuTimer.ReadCpuTimer();
+        _startTicks = CpuTimer.CpuTimer.ReadTimestampCounter();
     }
 
     public void Dispose()
     {
-        var endTicks = CpuTimer.ReadCpuTimer();
+        var endTicks = CpuTimer.CpuTimer.ReadTimestampCounter();
         ElapsedTicks += endTicks - _startTicks;
         HitCount++;
     }
