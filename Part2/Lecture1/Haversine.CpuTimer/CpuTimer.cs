@@ -5,7 +5,7 @@ namespace Haversine.CpuTimer;
 
 public static class CpuTimer
 {
-    [DllImport("rdtsc.dll", CallingConvention = CallingConvention.Cdecl, EntryPoint = "ReadTimestampCounter")]
+    [DllImport("rdtsc", CallingConvention = CallingConvention.Cdecl, EntryPoint = "ReadTimestampCounter")]
     private static extern ulong _ReadTimestampCounter();
 
     public static ulong ReadTimestampCounter()
@@ -29,14 +29,14 @@ public static class CpuTimer
         }
 
         var cpuEnd = _ReadTimestampCounter();
-        var cpuElapsed = cpuEnd - cpuStart;
+        var cpuElapsedTicks = cpuEnd - cpuStart;
 
         if (osElapsedTicks == 0)
         {
             return 0;
         }
 
-        var cpuFrequency = osFreq * cpuElapsed / osElapsedTicks;
+        var cpuFrequency = cpuElapsedTicks * osFreq / osElapsedTicks;
         return cpuFrequency;
     }
 }

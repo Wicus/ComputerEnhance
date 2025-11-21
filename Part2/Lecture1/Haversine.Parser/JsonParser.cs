@@ -10,13 +10,14 @@ public class JsonParser
 
     public JsonParser(IProfiler profiler, StreamReader reader)
     {
-        _tokenizer = new JsonTokenizer(reader);
+        _tokenizer = new JsonTokenizer(reader, profiler);
         _currentToken = _tokenizer.NextToken();
         _profiler = profiler;
     }
 
     public JsonValue Parse()
     {
+        using var parseZone = _profiler.BeginZone("Parse");
         var value = ParseValue();
         if (_currentToken.Type != JsonTokenType.EndOfFile)
         {
@@ -27,6 +28,7 @@ public class JsonParser
 
     private JsonValue ParseValue()
     {
+        using var parseObjectZone = _profiler.BeginZone("ParseValue");
         return _currentToken.Type switch
         {
             JsonTokenType.LeftBrace => ParseObject(),
@@ -42,7 +44,7 @@ public class JsonParser
 
     private JsonValue ParseObject()
     {
-        using var parseObjectZone = _profiler.BeginZone("ParseObject");
+        using var zone = _profiler.BeginZone("ParseObject");
         Expect(JsonTokenType.LeftBrace);
         var dict = new Dictionary<string, JsonValue>();
 
@@ -81,6 +83,7 @@ public class JsonParser
 
     private JsonValue ParseArray()
     {
+        using var zone = _profiler.BeginZone("ParseArray");
         Expect(JsonTokenType.LeftBracket);
         var list = new List<JsonValue>();
 
@@ -109,6 +112,7 @@ public class JsonParser
 
     private JsonValue ParseString()
     {
+        using var zone = _profiler.BeginZone("ParseString");
         var value = JsonValue.String(_currentToken.StringValue!);
         Advance();
         return value;
@@ -116,6 +120,7 @@ public class JsonParser
 
     private JsonValue ParseNumber()
     {
+        using var zone = _profiler.BeginZone("ParseNumber");
         var value = JsonValue.Number(_currentToken.NumberValue);
         Advance();
         return value;
@@ -123,18 +128,21 @@ public class JsonParser
 
     private JsonValue ParseTrue()
     {
+        using var zone = _profiler.BeginZone("ParseTrue");
         Advance();
         return JsonValue.Boolean(true);
     }
 
     private JsonValue ParseFalse()
     {
+        using var zone = _profiler.BeginZone("ParseFalse");
         Advance();
         return JsonValue.Boolean(false);
     }
 
     private JsonValue ParseNull()
     {
+        using var zone = _profiler.BeginZone("ParseNull");
         Advance();
         return JsonValue.Null();
     }
@@ -150,6 +158,7 @@ public class JsonParser
 
     private void Advance()
     {
+        using var zone = _profiler.BeginZone("Advance");
         _currentToken = _tokenizer.NextToken();
     }
 }

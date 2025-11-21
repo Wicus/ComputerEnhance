@@ -79,7 +79,7 @@ public class Generator
             // Get a random cluster index to put this pair in.
             var clusterIndex = random.Next(numberOfClusters);
             var (xCenter, yCenter) = clusterCenters[clusterIndex];
-            
+
             var xRadius = maxAllowedX / 64;
             var yRadius = maxAllowedY / 64;
 

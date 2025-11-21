@@ -1,7 +1,7 @@
-﻿using HaversineProfiler = Haversine.Profiler.Profiler;
-using HaversineParser = Haversine.Parser.Parser;
+﻿using Haversine.Profiler;
 using Microsoft.Extensions.DependencyInjection;
-using Haversine.Profiler;
+using HaversineParser = Haversine.Parser.Parser;
+using HaversineProfiler = Haversine.Profiler.Profiler;
 
 namespace Haversine.App;
 
@@ -130,25 +130,25 @@ internal static class Program
         switch (operation)
         {
             case "parse":
-            {
-                var projectDir = Directory.GetCurrentDirectory();
-                var filePath = Path.Combine(projectDir, "output", "haversine.json");
-                if (!File.Exists(filePath))
                 {
-                    Console.WriteLine($"Error: File not found: {filePath}");
-                    Console.WriteLine("Generate a file first with: haversine generate --pairs 1000000 --seed 42");
-                    return 1;
+                    var projectDir = Directory.GetCurrentDirectory();
+                    var filePath = Path.Combine(projectDir, "output", "haversine.json");
+                    if (!File.Exists(filePath))
+                    {
+                        Console.WriteLine($"Error: File not found: {filePath}");
+                        Console.WriteLine("Generate a file first with: haversine generate --pairs 1000000 --seed 42");
+                        return 1;
+                    }
+
+                    // Parser.Parser.Benchmark(filePath);
+                    return 0;
                 }
 
-                // Parser.Parser.Benchmark(filePath);
-                return 0;
-            }
-
             case "generate":
-            {
-                // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
-                return 0;
-            }
+                {
+                    // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
+                    return 0;
+                }
 
             default:
                 Console.WriteLine($"Unknown operation: {operation}");

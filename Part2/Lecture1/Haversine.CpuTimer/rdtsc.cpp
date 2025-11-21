@@ -1,10 +1,15 @@
-#include <intrin.h>
 #include <stdint.h>
-#include <windows.h>
-
-#define EXPORT __declspec(dllexport)
 
 typedef uint64_t u64;
+
+#ifdef _WIN32
+#include <intrin.h>
+#include <windows.h>
+#define EXPORT __declspec(dllexport)
+#else
+#include <x86intrin.h>
+#define EXPORT __attribute__((visibility("default")))
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,6 +20,7 @@ EXPORT u64 ReadTimestampCounter(void)
     return __rdtsc();
 }
 
+#ifdef _WIN32
 u64 ReadOsTimer()
 {
     LARGE_INTEGER counter;
@@ -56,6 +62,7 @@ u64 EstimateCpuTimerFreq()
 
     return cpuFreq;
 }
+#endif
 
 #ifdef __cplusplus
 }

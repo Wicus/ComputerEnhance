@@ -1,5 +1,3 @@
-using Haversine.CpuTimer;
-
 namespace Haversine.Tests;
 
 public sealed class CpuTimerTests

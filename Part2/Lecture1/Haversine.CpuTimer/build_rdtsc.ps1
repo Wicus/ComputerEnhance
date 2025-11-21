@@ -4,4 +4,4 @@ Enter-VsDevShell -VsInstallPath "C:\Program Files\Microsoft Visual Studio\2022\C
 
 cd $PSScriptRoot
 
-cl /LD /O2 rdtsc.cpp /link /OUT:rdtsc.dll
+cl /LD /O2 /Zi rdtsc.cpp /link /DEBUG /OUT:rdtsc.dll

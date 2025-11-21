@@ -1,5 +1,5 @@
+using Haversine.Profiler;
 using System.Globalization;
-using System.Text;
 
 namespace Haversine.Parser;
 
@@ -26,19 +26,16 @@ public struct JsonToken
     public double NumberValue;
 }
 
-public class JsonTokenizer
+public class JsonTokenizer(StreamReader reader, IProfiler profiler)
 {
-    private readonly StreamReader _reader;
+    private readonly StreamReader _reader = reader;
+    private readonly IProfiler _profiler = profiler;
     private const int MaxStringLength = 4096;
     private const int MaxNumberLength = 64;
 
-    public JsonTokenizer(StreamReader reader)
-    {
-        _reader = reader;
-    }
-
     public JsonToken NextToken()
     {
+        using var zone = _profiler.BeginZone("Tokenizer.NextToken");
         SkipWhiteSpace();
 
         var peek = _reader.Peek();
@@ -86,6 +83,7 @@ public class JsonTokenizer
 
     private JsonToken ReadString()
     {
+        using var zone = _profiler.BeginZone("Tokenizer.ReadString");
         _reader.Read(); // consume opening "
         Span<char> buffer = stackalloc char[MaxStringLength];
         var length = 0;
@@ -142,6 +140,7 @@ public class JsonTokenizer
 
     private JsonToken ReadNumber()
     {
+        using var zone = _profiler.BeginZone("Tokenizer.ReadNumber");
         Span<char> buffer = stackalloc char[MaxNumberLength];
         var length = 0;
 

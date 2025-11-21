@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Haversine.App": {
+      "commandName": "Project",
+      "commandLineArgs": "parse",
+      "nativeDebugging": true
+    }
+  }
+}
