@@ -4,6 +4,10 @@
       "commandName": "Project",
       "commandLineArgs": "parse",
       "nativeDebugging": true
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
     }
   }
 }

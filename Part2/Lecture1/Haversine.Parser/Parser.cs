@@ -37,7 +37,7 @@ public class Parser(IProfiler profiler)
             if (obj.TryGetValue("pairs", out var pairsValue) && pairsValue.Type == JsonValueType.Array)
             {
                 var pairs = pairsValue.AsArray();
-                using (var loopZone = profiler.BeginZone("CoordinateLoop"))
+                using (_ = profiler.BeginZone("CoordinateLoop"))
                 {
                     foreach (var pair in pairs)
                     {
@@ -59,7 +59,7 @@ public class Parser(IProfiler profiler)
                             var y1 = y1Val.AsNumber();
 
                             double distance;
-                            using (var haversineZone = profiler.BeginZone("Haversine"))
+                            using (_ = profiler.BeginZone("Haversine"))
                             {
                                 distance = ComputeHaversine(x0, y0, x1, y1);
                             }

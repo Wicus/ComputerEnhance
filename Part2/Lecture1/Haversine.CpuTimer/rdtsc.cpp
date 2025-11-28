@@ -3,12 +3,17 @@
 typedef uint64_t u64;
 
 #ifdef _WIN32
+
 #include <intrin.h>
 #include <windows.h>
 #define EXPORT __declspec(dllexport)
+
 #else
+
 #include <x86intrin.h>
+#include <time.h>
 #define EXPORT __attribute__((visibility("default")))
+
 #endif
 
 #ifdef __cplusplus
@@ -21,6 +26,7 @@ EXPORT u64 ReadTimestampCounter(void)
 }
 
 #ifdef _WIN32
+
 u64 ReadOsTimer()
 {
     LARGE_INTEGER counter;
@@ -34,6 +40,22 @@ u64 ReadOsTimerFreq()
     QueryPerformanceFrequency(&freq);
     return freq.QuadPart;
 }
+
+#else
+
+u64 ReadOsTimer()
+{
+    timespec time;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &time);
+    return (u64)time.tv_sec * 1000000000ULL + (u64)time.tv_nsec;
+}
+
+u64 ReadOsTimerFreq()
+{
+    return 1000000000ULL;
+}
+
+#endif
 
 u64 EstimateCpuTimerFreq()
 {
@@ -62,7 +84,6 @@ u64 EstimateCpuTimerFreq()
 
     return cpuFreq;
 }
-#endif
 
 #ifdef __cplusplus
 }
