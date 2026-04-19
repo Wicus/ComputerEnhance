@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haversine.CpuTimer", "Haver
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haversine.Tests", "Haversine.Tests\Haversine.Tests.csproj", "{4FA75BFC-A41E-48B5-AEDD-40E90F00EFA9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haversine.Profiler.Handmade", "Haversine.Profiler.Handmade\Haversine.Profiler.Handmade.csproj", "{55F29D00-C744-4ABB-8F1C-BFCF855BD862}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{4FA75BFC-A41E-48B5-AEDD-40E90F00EFA9}.Release|x64.Build.0 = Release|Any CPU
 		{4FA75BFC-A41E-48B5-AEDD-40E90F00EFA9}.Release|x86.ActiveCfg = Release|Any CPU
 		{4FA75BFC-A41E-48B5-AEDD-40E90F00EFA9}.Release|x86.Build.0 = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|x64.Build.0 = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Debug|x86.Build.0 = Debug|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|Any CPU.Build.0 = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|x64.ActiveCfg = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|x64.Build.0 = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|x86.ActiveCfg = Release|Any CPU
+		{55F29D00-C744-4ABB-8F1C-BFCF855BD862}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

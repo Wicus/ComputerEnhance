@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Haversine.Profiler\Haversine.Profiler.csproj" />
+    <ProjectReference Include="..\Haversine.Profiler.Handmade\Haversine.Profiler.Handmade.csproj" />
   </ItemGroup>
 
 </Project>

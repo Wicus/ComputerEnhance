@@ -47,12 +47,12 @@ u64 ReadOsTimer()
 {
     timespec time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &time);
-    return (u64)time.tv_sec * 1000000000ULL + (u64)time.tv_nsec;
+    return (u64)time.tv_sec * 1'000'000'000 + (u64)time.tv_nsec;
 }
 
 u64 ReadOsTimerFreq()
 {
-    return 1000000000ULL;
+    return 1'000'000'000;
 }
 
 #endif

@@ -1,4 +1,5 @@
 using Haversine.Profiler;
+using Haversine.Profiler.Handmade;
 
 namespace Haversine.Parser;
 
@@ -18,6 +19,7 @@ public class JsonParser
     public JsonValue Parse()
     {
         using var parseZone = _profiler.BeginZone("Parse");
+        using var zoneHand = new Zone("ParseArray");
         var value = ParseValue();
         if (_currentToken.Type != JsonTokenType.EndOfFile)
         {

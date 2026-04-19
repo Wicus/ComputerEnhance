@@ -7,7 +7,6 @@ public static class CpuTimer
 {
     [DllImport("rdtsc", CallingConvention = CallingConvention.Cdecl, EntryPoint = "ReadTimestampCounter")]
     private static extern ulong _ReadTimestampCounter();
-
     public static ulong ReadTimestampCounter()
     {
         return _ReadTimestampCounter();
