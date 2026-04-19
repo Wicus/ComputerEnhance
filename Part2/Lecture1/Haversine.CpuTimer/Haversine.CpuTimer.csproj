@@ -7,8 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="rdtsc.dll" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="librdtsc.so" Condition="Exists('librdtsc.so')" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="librdtsc.so" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

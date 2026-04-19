@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-#set -euo pipefail
+# Builds rdtsc.c into librdtsc.so for Linux (x86-64).
+# -shared: produce a shared object instead of an executable
+# -fPIC:   position-independent code, required for shared libraries on Linux
+set -euo pipefail
 
 cd "$(dirname "$0")"
-g++ -shared -fPIC rdtsc.cpp -o librdtsc.so
+gcc -shared -fPIC rdtsc.c -o librdtsc.so
 echo "Built librdtsc.so"
