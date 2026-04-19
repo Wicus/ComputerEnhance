@@ -5,40 +5,73 @@ using HaversineProfiler = Haversine.Profiler.Profiler;
 
 namespace Haversine.App;
 
-internal static class Program
+class Args {
+    /// <summary>
+    /// The type of command to execute (generate, parse, benchmark)
+    /// </summary>
+    public CommandType CommandType { get; set; }
+
+    /// <summary>
+    /// The file path to read from or write to (for generate and parse commands)
+    /// </summary>
+    public string FilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Parses the command-line arguments and populates the properties of this class.
+    /// Returns true if parsing was successful, false otherwise.
+    /// </summary>
+    public bool TryParse(string[] sourceArgs)
+    {
+        if (sourceArgs.Length == 0)
+            return false;
+
+        // FilePath
+        var projectDir = Directory.GetCurrentDirectory();
+        var filePath = Path.Combine(projectDir, "output", "haversine.json");
+
+        // CommandType
+        var command = sourceArgs[0];
+        if (!DescriptionEnum.TryParse<CommandType>(command, ignoreCase: true, out var commandType))
+            return false;
+
+        FilePath = filePath;
+        CommandType = commandType;
+
+        return true;
+    }
+}
+
+static class Program
 {
     private const long MaxPairs = 100_000_000;
-    private static ServiceProvider? _serviceProvider;
 
     private static int Main(string[] args)
     {
-        ConfigureServices();
-
-        if (args.Length == 0)
+        var parsedArgs = new Args();
+        if (!parsedArgs.TryParse(args))
         {
+            Console.WriteLine("Error: Invalid arguments");
             PrintUsage();
             return 1;
         }
 
-        var command = args[0];
-        var projectDir = Directory.GetCurrentDirectory();
-        var filePath = Path.Combine(projectDir, "output", "haversine.json");
+        using var services = SetupServiceProvider();
 
-        return command switch
+        return parsedArgs.CommandType switch
         {
-            "generate" => HandleGenerate(args, filePath),
-            "parse" => HandleParse(filePath),
-            "benchmark" => HandleBenchmark(args),
-            _ => InvalidCommand(command)
+            CommandType.Generate => HandleGenerate(args, parsedArgs.FilePath),
+            CommandType.Parse => HandleParse(services, parsedArgs.FilePath),
+            CommandType.Benchmark => HandleBenchmark(args),
+            _ => InvalidCommand(args[0]),
         };
     }
 
-    private static void ConfigureServices()
+    private static ServiceProvider SetupServiceProvider()
     {
-        var services = new ServiceCollection();
-        services.AddSingleton<IProfiler, HaversineProfiler>();
-        services.AddTransient<HaversineParser>();
-        _serviceProvider = services.BuildServiceProvider();
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddSingleton<IProfiler, HaversineProfiler>();
+        serviceCollection.AddTransient<HaversineParser>();
+        return serviceCollection.BuildServiceProvider();
     }
 
     private static int HandleGenerate(string[] args, string filePath)
@@ -95,7 +128,7 @@ internal static class Program
         return 0;
     }
 
-    private static int HandleParse(string filePath)
+    private static int HandleParse(ServiceProvider services, string filePath)
     {
         if (!File.Exists(filePath))
         {
@@ -103,7 +136,7 @@ internal static class Program
             return 1;
         }
 
-        var parser = _serviceProvider!.GetRequiredService<HaversineParser>();
+        var parser = services.GetRequiredService<HaversineParser>();
         parser.Parse(filePath);
         parser.PrintResults(filePath);
         return 0;
@@ -130,25 +163,25 @@ internal static class Program
         switch (operation)
         {
             case "parse":
+            {
+                var projectDir = Directory.GetCurrentDirectory();
+                var filePath = Path.Combine(projectDir, "output", "haversine.json");
+                if (!File.Exists(filePath))
                 {
-                    var projectDir = Directory.GetCurrentDirectory();
-                    var filePath = Path.Combine(projectDir, "output", "haversine.json");
-                    if (!File.Exists(filePath))
-                    {
-                        Console.WriteLine($"Error: File not found: {filePath}");
-                        Console.WriteLine("Generate a file first with: haversine generate --pairs 1000000 --seed 42");
-                        return 1;
-                    }
-
-                    // Parser.Parser.Benchmark(filePath);
-                    return 0;
+                    Console.WriteLine($"Error: File not found: {filePath}");
+                    Console.WriteLine("Generate a file first with: haversine generate --pairs 1000000 --seed 42");
+                    return 1;
                 }
+
+                // Parser.Parser.Benchmark(filePath);
+                return 0;
+            }
 
             case "generate":
-                {
-                    // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
-                    return 0;
-                }
+            {
+                // Benchmark.Run("Generate Haversine Data", () => Generator.Generator.WriteJson(filePath, pairs, seed));
+                return 0;
+            }
 
             default:
                 Console.WriteLine($"Unknown operation: {operation}");

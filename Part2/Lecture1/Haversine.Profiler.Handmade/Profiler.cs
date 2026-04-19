@@ -16,15 +16,15 @@ public class Zone(string name) : IDisposable
 
 public class Profiler
 {
-    private readonly List<Zone> _zones;
+    private readonly List<Zone> _zones = [];
     private readonly double _timerFrequency;
 
     public Profiler()
     {
-        _timerFrequency = CpuTimer.CpuTimer.GetTimerFrequency();
+        _timerFrequency = CpuTimer.CpuTimer.EstimateFrequency();
     }
 
-    public Print()
+    public void Print()
     {
     }
 }
