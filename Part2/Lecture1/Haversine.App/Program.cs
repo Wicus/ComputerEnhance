@@ -5,52 +5,15 @@ using HaversineProfiler = Haversine.Profiler.Profiler;
 
 namespace Haversine.App;
 
-class Args {
-    /// <summary>
-    /// The type of command to execute (generate, parse, benchmark)
-    /// </summary>
-    public CommandType CommandType { get; set; }
-
-    /// <summary>
-    /// The file path to read from or write to (for generate and parse commands)
-    /// </summary>
-    public string FilePath { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Parses the command-line arguments and populates the properties of this class.
-    /// Returns true if parsing was successful, false otherwise.
-    /// </summary>
-    public bool TryParse(string[] sourceArgs)
-    {
-        if (sourceArgs.Length == 0)
-            return false;
-
-        // FilePath
-        var projectDir = Directory.GetCurrentDirectory();
-        var filePath = Path.Combine(projectDir, "output", "haversine.json");
-
-        // CommandType
-        var command = sourceArgs[0];
-        if (!DescriptionEnum.TryParse<CommandType>(command, ignoreCase: true, out var commandType))
-            return false;
-
-        FilePath = filePath;
-        CommandType = commandType;
-
-        return true;
-    }
-}
-
 static class Program
 {
-    private const long MaxPairs = 100_000_000;
-
     private static int Main(string[] args)
     {
-        var parsedArgs = new Args();
-        if (!parsedArgs.TryParse(args))
+        var parsedArgs = new Args(args);
+        var parseResult = parsedArgs.TryParse();
+        if (!parseResult)
         {
-            Console.WriteLine("Error: Invalid arguments");
+            Console.WriteLine($"Error: {parseResult.Error}");
             PrintUsage();
             return 1;
         }
@@ -59,10 +22,10 @@ static class Program
 
         return parsedArgs.CommandType switch
         {
-            CommandType.Generate => HandleGenerate(args, parsedArgs.FilePath),
+            CommandType.Generate => HandleGenerate(parsedArgs),
             CommandType.Parse => HandleParse(services, parsedArgs.FilePath),
             CommandType.Benchmark => HandleBenchmark(args),
-            _ => InvalidCommand(args[0]),
+            _ => InvalidCommand(parsedArgs.CommandType.ToString()),
         };
     }
 
@@ -74,57 +37,16 @@ static class Program
         return serviceCollection.BuildServiceProvider();
     }
 
-    private static int HandleGenerate(string[] args, string filePath)
+    private static int HandleGenerate(Args parsedArgs)
     {
-        if (args.Length < 5)
+        var result = parsedArgs.TryParseGenerate();
+        if (!result)
         {
-            Console.WriteLine("Error: generate requires --pairs <count> --seed <value>");
+            Console.WriteLine($"Error: {result.Error}");
             return 1;
         }
 
-        long pairs = 0;
-        int seed = 0;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            var arg = args[i];
-            if (arg == "--pairs")
-            {
-                if (!long.TryParse(args[++i], out pairs))
-                {
-                    Console.WriteLine($"Error: Invalid pairs value '{args[i]}'");
-                    return 1;
-                }
-            }
-            else if (arg == "--seed")
-            {
-                if (!int.TryParse(args[++i], out seed))
-                {
-                    Console.WriteLine($"Error: Invalid seed value '{args[i]}'");
-                    return 1;
-                }
-            }
-        }
-
-        if (pairs <= 0)
-        {
-            Console.WriteLine("Error: Number of pairs must be greater than 0");
-            return 1;
-        }
-
-        if (pairs > MaxPairs)
-        {
-            Console.WriteLine($"Error: Number of pairs cannot exceed {MaxPairs:N0}");
-            return 1;
-        }
-
-        if (seed < 0)
-        {
-            Console.WriteLine("Error: Seed must be non-negative");
-            return 1;
-        }
-
-        Generator.Generator.WriteJson(filePath, pairs, seed);
+        Generator.Generator.WriteJson(parsedArgs.FilePath, parsedArgs.Pairs, parsedArgs.Seed);
         return 0;
     }
 
@@ -142,7 +64,7 @@ static class Program
         return 0;
     }
 
-    private static int InvalidCommand(string command)
+    private static int InvalidCommand(string? command)
     {
         Console.WriteLine($"Error: Unknown command '{command}'");
         PrintUsage();

@@ -12,7 +12,7 @@ static class DescriptionEnum
         foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
         {
             var description = field.GetCustomAttribute<DescriptionAttribute>()?.Description;
-            if (description != null && description == value.Equals(value, comparison))
+            if (description != null && description.Equals(value, comparison))
             {
                 result = (T)field.GetValue(null)!;
                 return true;
